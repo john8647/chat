@@ -4,9 +4,32 @@
     <meta charset="UTF-8">
     <title>Farm Chat Game</title>
     <style>
-        body { font-family: Arial; padding: 20px; }
-        #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
-        #input { width: 80%; }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f4f4f4;
+        }
+        #chat {
+            border: 1px solid #ccc;
+            background: #fff;
+            padding: 10px;
+            height: 350px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        #input {
+            width: 80%;
+            padding: 8px;
+        }
+        button {
+            padding: 8px 12px;
+            margin-left: 5px;
+        }
+        #status {
+            font-style: italic;
+            color: #666;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -18,19 +41,34 @@
 <input id="input" placeholder="Say something..." />
 <button onclick="sendMessage()">Send</button>
 
-<script>
-const input = document.getElementById("input");
-const chat = document.getElementById("chat");
+<br><br>
 
+<button onclick="fetchHistory()">Show History</button>
+<button onclick="fetchImage()">Generate Image Prompt</button>
+
+<div id="status"></div>
+
+<script>
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const status = document.getElementById("status");
+
+// Append message to chat window
+function append(msg) {
+    chat.innerHTML += `<div>${msg}</div>`;
+    chat.scrollTop = chat.scrollHeight;
+}
+
+// Send chat message
 async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
 
     append("You: " + text);
-
-    // Clear input immediately
     input.value = "";
     input.focus();
+
+    status.textContent = "Jimmy is thinking...";
 
     const res = await fetch("/play", {
         method: "POST",
@@ -39,22 +77,30 @@ async function sendMessage() {
     });
 
     const data = await res.json();
-    append(data.reply);
+
+    status.textContent = "";
+    append("Jimmy: " + data.reply);
 }
 
-function append(msg) {
-    chat.innerHTML += `<div>${msg}</div>`;
-    chat.scrollTop = chat.scrollHeight;
-}
-
-// ENTER key to send
+// Enter key to send
 input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-        sendMessage();
-    }
+    if (e.key === "Enter") sendMessage();
 });
-</script>
 
+// Fetch history from Python API
+async function fetchHistory() {
+    const res = await fetch("/history");
+    const data = await res.json();
+    append("📜 History:<br><pre>" + data.history + "</pre>");
+}
+
+// Fetch image prompt from Python API
+async function fetchImage() {
+    const res = await fetch("/image");
+    const data = await res.json();
+    append("🖼️ Image Prompt:<br><pre>" + data.image_prompt + "</pre>");
+}
+</script>
 
 </body>
 </html>
