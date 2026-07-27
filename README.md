@@ -10,11 +10,17 @@ The Coding Club website.
 to Test run curl -X POST http://localhost:3000/play -H "Content-Type: application/json" -d "{\"message\":\"hello\"}"
 
 
-##start server
-npm run dev
+##start server 
+
+ 
+
 python play_server.py
 
 
 ##start UI
-python play_server.py
+
+npm start
+
+
+
 
