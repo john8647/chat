@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Farm Chat Game</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
+        #input { width: 80%; }
+    </style>
+</head>
+<body>
+
+<h2>Farm Chat Game</h2>
+
+<div id="chat"></div>
+
+<input id="input" placeholder="Say something..." />
+<button onclick="sendMessage()">Send</button>
+
+<script>
+const input = document.getElementById("input");
+const chat = document.getElementById("chat");
+
+async function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+
+    append("You: " + text);
+
+    // Clear input immediately
+    input.value = "";
+    input.focus();
+
+    const res = await fetch("/play", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text })
+    });
+
+    const data = await res.json();
+    append(data.reply);
+}
+
+function append(msg) {
+    chat.innerHTML += `<div>${msg}</div>`;
+    chat.scrollTop = chat.scrollHeight;
+}
+
+// ENTER key to send
+input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        sendMessage();
+    }
+});
+</script>
+
+
+</body>
+</html>
