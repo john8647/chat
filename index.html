@@ -2,73 +2,104 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Farm Chat Game</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background: #f4f4f4;
-        }
-        #chat {
-            border: 1px solid #ccc;
-            background: #fff;
-            padding: 10px;
-            height: 350px;
-            overflow-y: auto;
-            margin-bottom: 10px;
-        }
-        #input {
-            width: 80%;
-            padding: 8px;
-        }
-        button {
-            padding: 8px 12px;
-            margin-left: 5px;
-        }
-        #status {
-            font-style: italic;
-            color: #666;
-            margin-top: 5px;
-        }
-    </style>
+    <title>Game</title>
+    <link rel="stylesheet" href="/resources/styles.css">
 </head>
 <body>
 
-<h2>Farm Chat Game</h2>
+<div class="app">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">Characters</div>
+        <div class="character-list">
+           <div class="character-item active" data-name="Jimmy" onclick="selectCharacter('Jimmy', this)">
+                <div class="avatar" style="background-image:url('/images/jimmy.png'); background-size:cover;"></div>
+                <div class="character-name">Jimmy</div>
+            </div>
+            <div class="character-item" data-name="Sarah" onclick="selectCharacter('Sarah', this)">
+                <div class="avatar" style="background-image:url('/images/sarah.png'); background-size:cover;"></div>
+                <div class="character-name">Sarah</div>
+            </div>
+            <div class="character-item" data-name="Chloe" onclick="selectCharacter('Chloe', this)">
+                <div class="avatar" style="background-image:url('/images/chloe.png'); background-size:cover;"></div>
+                <div class="character-name">Chloe</div>
+            </div>
+        </div>
+    </div>
 
-<div id="chat"></div>
+    <!-- Chat area -->
+    <div class="chat-area">
+        <div class="chat-header">
+            <div class="chat-header-avatar" id="chatHeaderAvatar"></div>
+            <div class="chat-header-info">
+            <div class="chat-header-name" id="chatHeaderName">Jimmy</div>
+            <div class="chat-header-status" id="chatHeaderStatus">Online</div>
+        </div>
+</div>
 
-<input id="input" placeholder="Say something..." />
-<button onclick="sendMessage()">Send</button>
-
-<br><br>
-
-<button onclick="fetchHistory()">Show History</button>
-<button onclick="fetchImage()">Generate Image Prompt</button>
-
-<div id="status"></div>
+        <div class="chat-window" id="chat"></div>
+        <div class="input-area">
+            <input id="input" placeholder="Type a message" />
+            <button class="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</div>
 
 <script>
+let characterName = "Jimmy";
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
-const status = document.getElementById("status");
+const chatHeaderName = document.getElementById("chatHeaderName");
 
-// Append message to chat window
-function append(msg) {
-    chat.innerHTML += `<div>${msg}</div>`;
+function appendBubble(text, who) {
+    const row = document.createElement("div");
+    row.className = "message-row " + (who === "you" ? "you" : "character");
+
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble " + (who === "you" ? "you" : "character");
+    bubble.innerHTML = text;
+
+    row.appendChild(bubble);
+    chat.appendChild(row);
     chat.scrollTop = chat.scrollHeight;
 }
 
-// Send chat message
+function showTyping() {
+    const row = document.createElement("div");
+    row.className = "message-row character";
+    row.id = "typingRow";
+
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble character";
+
+    const typing = document.createElement("div");
+    typing.className = "typing";
+    typing.innerHTML = `
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+    `;
+
+    bubble.appendChild(typing);
+    row.appendChild(bubble);
+    chat.appendChild(row);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function hideTyping() {
+    const row = document.getElementById("typingRow");
+    if (row) row.remove();
+}
+
 async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
 
-    append("You: " + text);
+    appendBubble(text, "you");
     input.value = "";
     input.focus();
 
-    status.textContent = "Jimmy is thinking...";
+    showTyping();
 
     const res = await fetch("/play", {
         method: "POST",
@@ -78,28 +109,131 @@ async function sendMessage() {
 
     const data = await res.json();
 
-    status.textContent = "";
-    append("Jimmy: " + data.reply);
+    hideTyping();
+    appendBubble(data.reply, "character");
 }
 
-// Enter key to send
 input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") sendMessage();
 });
 
-// Fetch history from Python API
 async function fetchHistory() {
     const res = await fetch("/history");
     const data = await res.json();
-    append("📜 History:<br><pre>" + data.history + "</pre>");
+
+    chat.innerHTML = ""; // clear chat
+
+    const lines = data.history.split("\n");
+
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+
+        // Skip persona header
+        if (line.startsWith("Conversation history")) continue;
+
+        // Detect speaker
+        if (line.startsWith("User:")) {
+            appendBubble(line.replace("User:", "").trim(), "you");
+        } else if (line.startsWith("Jimmy:")) {
+            appendBubble(line.replace("Jimmy:", "").trim(), "character");
+        } else if (line.startsWith("Sarah:")) {
+            appendBubble(line.replace("Sarah:", "").trim(), "character");
+        } else if (line.startsWith("Chloe:")) {
+            appendBubble(line.replace("Chloe:", "").trim(), "character");
+        } else {
+            // Fallback: treat as character message
+            appendBubble(line, "character");
+        }
+    }
 }
 
-// Fetch image prompt from Python API
-async function fetchImage() {
-    const res = await fetch("/image");
-    const data = await res.json();
-    append("🖼️ Image Prompt:<br><pre>" + data.image_prompt + "</pre>");
+
+async function selectCharacter(name, element) {
+    characterName = name;
+    chatHeaderName.textContent = characterName;
+
+    // Update avatar
+    document.getElementById("chatHeaderAvatar").style.backgroundImage =
+        `url('/images/${characterName.toLowerCase()}.png')`;
+
+    // Update active class in sidebar
+    document.querySelectorAll(".character-item").forEach(item => {
+        item.classList.remove("active");
+    });
+    element.classList.add("active");
+
+    // Tell backend to switch character + load history
+    await fetch("/character/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: characterName })
+    });
+
+    await fetchHistory();
+
+    // Reset status
+    document.getElementById("chatHeaderStatus").textContent = "Online";
 }
+
+function showTyping() {
+    document.getElementById("chatHeaderStatus").textContent = "Typing...";
+
+    const row = document.createElement("div");
+    row.className = "message-row character";
+    row.id = "typingRow";
+
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble character";
+
+    const typing = document.createElement("div");
+    typing.className = "typing";
+    typing.innerHTML = `
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+    `;
+
+    bubble.appendChild(typing);
+    row.appendChild(bubble);
+    chat.appendChild(row);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function hideTyping() {
+    const row = document.getElementById("typingRow");
+    if (row) row.remove();
+
+    document.getElementById("chatHeaderStatus").textContent = "Online";
+}
+
+
+
+// Initial load: sync with backend and show history
+async function initCharacter() {
+    const res = await fetch("/character");
+    const data = await res.json();
+    characterName = data.name || "Jimmy";
+    chatHeaderName.textContent = characterName;
+
+    // Match sidebar selection
+    document.querySelectorAll(".character-item").forEach(item => {
+        if (item.dataset.name === characterName) {
+            item.classList.add("active");
+        } else {
+            item.classList.remove("active");
+        }
+    });
+
+    
+
+    document.getElementById("chatHeaderAvatar").style.backgroundImage =
+    `url('/images/${characterName.toLowerCase()}.png')`;
+
+    await fetchHistory();
+}
+
+initCharacter();
 </script>
 
 </body>

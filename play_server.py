@@ -3,16 +3,20 @@ from pydantic import BaseModel
 import uvicorn
 import random
 import requests
+import json
+import os
+
 
 # ---------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------
 
-SERVER_URL = "https://interact-italia-knitting-repository.trycloudflare.com:443/api/v1/generate"
-character_name = "Jimmy"
-lora = {"Jimmy": "Jimmy_0303"}
+SERVER_URL = "https://baby-rack-rocky-ratio.trycloudflare.com:443/api/v1/generate"
+##character_name = "Jimmy"
+character_name = "Chloe"
+lora = {"Chloe": "chloe_f1"}
 
-TEST_MODE = True
+TEST_MODE = False
 
 # Test replies
 test_replies = [
@@ -33,13 +37,47 @@ def test_requests(payload):
 
 # Persona
 persona = f"""
-You are {character_name}, an old farmer..
-You only wear farm clothes.
-You enjoy when John looks after you. Only talk about yourself.
+You are {character_name}, You are a farmer with some sheep.
+You like to talk to John about nothing much.
+You only work when the sunshines.
 """
+
+# ---------------------------------------------------------
+# Save / Load History
+# ---------------------------------------------------------
+
+def history_filename():
+    return f"{character_name}_history.json"
+
+def save_history():
+    try:
+        with open(history_filename(), "w", encoding="utf-8") as f:
+            json.dump({"history": history}, f, indent=2)
+    except Exception as e:
+        print(f"Error saving history: {e}")
+
+def load_history():
+    global history
+    filename = history_filename()
+
+    if os.path.exists(filename):
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                history = data.get("history", history)
+                print(f"Loaded history from {filename}")
+        except Exception as e:
+            print(f"Error loading history: {e}")
+    else:
+        print(f"No saved history found for {character_name}, using default.")
+
+
+
 
 # Conversation memory
 history = persona + "Conversation history:\n"
+load_history()
+
 
 # Character state
 character_state = {
@@ -48,6 +86,8 @@ character_state = {
     "time": "late afternoon",
     "mood": "calm"
 }
+
+
 
 # ---------------------------------------------------------
 # Utility functions
@@ -120,7 +160,7 @@ def send_message(user_input):
     reply = data["results"][0]["text"].strip()
 
     history += reply + "\n"
-
+    save_history()
     return reply
 
 def illustrate_scene():
@@ -181,7 +221,32 @@ def get_state():
 def reset():
     global history
     history = persona + "Conversation history:\n"
-    return {"status": "reset"}
+
+    # Delete saved file
+    try:
+        os.remove(history_filename())
+    except FileNotFoundError:
+        pass
+
+    save_history()
+    return {"status": "reset", "character": character_name}
+
+@app.post("/character/select")
+def select_character(req: dict):
+    global character_name, history
+
+    new_name = req.get("name")
+    if not new_name:
+        return {"error": "No character name provided"}
+
+    character_name = new_name
+
+    # Reload persona and history
+    history = persona + "Conversation history:\n"
+    load_history()
+
+    return {"status": "ok", "character": character_name}
+
 
 # ---------------------------------------------------------
 # Run server
@@ -199,3 +264,8 @@ def root():
 @app.get("/favicon.ico")
 def favicon():
     return {}
+
+
+@app.get("/character")
+def get_character():
+    return {"name": character_name}
