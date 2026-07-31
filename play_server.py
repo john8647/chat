@@ -6,47 +6,107 @@ import requests
 import json
 import os
 
+from fastapi.middleware.cors import CORSMiddleware
+
+
 
 # ---------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------
 
 SERVER_URL = "https://baby-rack-rocky-ratio.trycloudflare.com:443/api/v1/generate"
-##character_name = "Jimmy"
-character_name = "Chloe"
+character_name = "undefined"
+
 lora = {"Chloe": "chloe_f1"}
+character_name = "undefined"
+persona = ""
+mood = ""
+outfit = ""
+char_location = ""
+inventory = []
+history = "Conversation history:\n"
 
-TEST_MODE = False
 
-# Test replies
-test_replies = [
+TEST_MODE = True
+
+
+
+def test_requests(payload):
+    # Test replies
+    test_replies = [
     f"{character_name} nods thoughtfully.",
     f"{character_name} adjusts his straw hat.",
     f"{character_name} looks around the farmyard.",
     f"{character_name} smiles warmly.",
     f"{character_name} takes a slow breath and continues.",
     f"{character_name} steps closer and speaks softly."
-]
-
-def test_requests(payload):
+    ]
     return {
         "results": [
             {"text": random.choice(test_replies)}
         ]
     }
 
-# Persona
-persona = f"""
-You are {character_name}, You are a farmer with some sheep.
-You like to talk to John about nothing much.
-You only work when the sunshines.
-"""
+# Persona and data
+def load_character_data():
+    global persona, mood, outfit, char_location, inventory, history, character_name
+    
+
+    filename = f"{character_name}_data.json"
+    print(f"[LOAD] persona = {persona}")
+    print(f"[LOAD] mood = {mood}")
+    print(f"[LOAD] outfit = {outfit}")
+    print(f"[LOAD] location = {char_location}")
+    print(f"[LOAD] inventory = {inventory}")
+    if os.path.exists(filename):
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                print("[LOAD] RAW JSON:", data)
+                persona = data.get("persona", "")
+                mood = data.get("mood", "")
+                outfit = data.get("outfit", "")
+                char_location = data.get("location", "")
+                inventory = data.get("inventory", [])
+
+                print(f"Loaded data for {character_name}")
+        except Exception as e:
+            print(f"Error loading character data: {e}")
+    else:
+        print(f"No data file found for {character_name}, using fallback.")
+        persona = f"You are {character_name}."
+        mood = ""
+        outfit = ""
+        char_location = ""
+        inventory = []
+
+    # Reset history header using new persona
+    history = persona + "\nConversation history:\n"
+
+def save_character_data():
+    global persona, mood, outfit, char_location, inventory, character_name
+
+    data = {
+        "persona": persona,
+        "mood": mood,
+        "outfit": outfit,
+        "location": char_location,
+        "inventory": inventory
+    }
+
+    with open(f"{character_name}.json", "w") as f:
+        json.dump(data, f, indent=4)
+
+    print(f"[SAVE] Saved data for {character_name}")
+
+
 
 # ---------------------------------------------------------
 # Save / Load History
 # ---------------------------------------------------------
 
 def history_filename():
+    global character_name
     return f"{character_name}_history.json"
 
 def save_history():
@@ -57,7 +117,7 @@ def save_history():
         print(f"Error saving history: {e}")
 
 def load_history():
-    global history
+    global history, character_name
     filename = history_filename()
 
     if os.path.exists(filename):
@@ -74,20 +134,10 @@ def load_history():
 
 
 
-# Conversation memory
-history = persona + "Conversation history:\n"
+# Conversation and persona memory
+# history = persona + "Conversation history:\n"
+load_character_data()
 load_history()
-
-
-# Character state
-character_state = {
-    "outfit": "black jumper, black trousers and brown shoes",
-    "location": "living room",
-    "time": "late afternoon",
-    "mood": "calm"
-}
-
-
 
 # ---------------------------------------------------------
 # Utility functions
@@ -139,8 +189,8 @@ def get_clean_recent_context(history, persona, character_name,
 # ---------------------------------------------------------
 
 def send_message(user_input):
-    global history
-
+    global history, character_name
+    
     history += f"User: {user_input}\n{character_name}: "
 
     payload = {
@@ -196,6 +246,13 @@ Recent Actions:
 # ---------------------------------------------------------
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ChatRequest(BaseModel):
     message: str
@@ -203,6 +260,7 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 def chat(req: ChatRequest):
     reply = send_message(req.message)
+    
     return {"reply": reply}
 
 @app.get("/history")
@@ -233,19 +291,54 @@ def reset():
 
 @app.post("/character/select")
 def select_character(req: dict):
-    global character_name, history
-
+    global character_name, history, mood, outfit, char_location, inventory
+    
     new_name = req.get("name")
     if not new_name:
         return {"error": "No character name provided"}
 
     character_name = new_name
 
-    # Reload persona and history
-    history = persona + "Conversation history:\n"
+    load_character_data()
     load_history()
+    print("[SELECT] Sending persona =", persona)
+    print("[SELECT] Sending location =", char_location)
 
-    return {"status": "ok", "character": character_name}
+    return {
+        "status": "ok",
+        "character": character_name,
+        "persona": persona,
+        "mood": mood,
+        "outfit": outfit,
+        "location": char_location,
+        "inventory": inventory
+    }
+
+
+
+@app.post("/character/update")
+def update_character(req: dict):
+    global persona, mood, outfit, char_location, inventory, character_name
+
+    print("[UPDATE] Received update:", req)
+
+    persona = req.get("persona", persona)
+    mood = req.get("mood", mood)
+    outfit = req.get("outfit", outfit)
+    char_location = req.get("location", char_location)
+    inventory = req.get("inventory", inventory)
+
+    save_character_data()
+
+    print("[UPDATE] Saved new values:")
+    print(" persona =", persona)
+    print(" mood =", mood)
+    print(" outfit =", outfit)
+    print(" location =", char_location)
+    print(" inventory =", inventory)
+
+    return {"status": "ok"}
+
 
 
 # ---------------------------------------------------------

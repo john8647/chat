@@ -34,7 +34,34 @@
             <div class="chat-header-info">
             <div class="chat-header-name" id="chatHeaderName">Jimmy</div>
             <div class="chat-header-status" id="chatHeaderStatus">Online</div>
+
         </div>
+            
+             <div class="chat-header-profile-toggle">
+        <button id="profileBtn" onclick="openProfile()">Profile</button>
+    </div>
+        <!-- Profile Panel -->
+<div id="profilePanel" class="profile-panel">
+    <h3 id="profileName"></h3>
+
+    <label>Persona</label>
+    <textarea id="profilePersona"></textarea>
+
+    <label>Mood</label>
+    <input id="profileMood">
+
+    <label>Outfit</label>
+    <input id="profileOutfit">
+
+    <label>Location</label>
+    <input id="profileLocation">
+
+    <label>Inventory (comma separated)</label>
+    <input id="profileInventory">
+
+    <button onclick="saveProfile()">Save</button>
+    <button onclick="closeProfile()">Close</button>
+</div>
 </div>
 
         <div class="chat-window" id="chat"></div>
@@ -45,196 +72,15 @@
     </div>
 </div>
 
-<script>
-let characterName = "Jimmy";
-const chat = document.getElementById("chat");
-const input = document.getElementById("input");
-const chatHeaderName = document.getElementById("chatHeaderName");
-
-function appendBubble(text, who) {
-    const row = document.createElement("div");
-    row.className = "message-row " + (who === "you" ? "you" : "character");
-
-    const bubble = document.createElement("div");
-    bubble.className = "message-bubble " + (who === "you" ? "you" : "character");
-    bubble.innerHTML = text;
-
-    row.appendChild(bubble);
-    chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
-}
-
-function showTyping() {
-    const row = document.createElement("div");
-    row.className = "message-row character";
-    row.id = "typingRow";
-
-    const bubble = document.createElement("div");
-    bubble.className = "message-bubble character";
-
-    const typing = document.createElement("div");
-    typing.className = "typing";
-    typing.innerHTML = `
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-    `;
-
-    bubble.appendChild(typing);
-    row.appendChild(bubble);
-    chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
-}
-
-function hideTyping() {
-    const row = document.getElementById("typingRow");
-    if (row) row.remove();
-}
-
-async function sendMessage() {
-    const text = input.value.trim();
-    if (!text) return;
-
-    appendBubble(text, "you");
-    input.value = "";
-    input.focus();
-
-    showTyping();
-
-    const res = await fetch("/play", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-    });
-
-    const data = await res.json();
-
-    hideTyping();
-    appendBubble(data.reply, "character");
-}
-
-input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") sendMessage();
-});
-
-async function fetchHistory() {
-    const res = await fetch("/history");
-    const data = await res.json();
-
-    chat.innerHTML = ""; // clear chat
-
-    const lines = data.history.split("\n");
-
-    for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
-
-        // Skip persona header
-        if (line.startsWith("Conversation history")) continue;
-
-        // Detect speaker
-        if (line.startsWith("User:")) {
-            appendBubble(line.replace("User:", "").trim(), "you");
-        } else if (line.startsWith("Jimmy:")) {
-            appendBubble(line.replace("Jimmy:", "").trim(), "character");
-        } else if (line.startsWith("Sarah:")) {
-            appendBubble(line.replace("Sarah:", "").trim(), "character");
-        } else if (line.startsWith("Chloe:")) {
-            appendBubble(line.replace("Chloe:", "").trim(), "character");
-        } else {
-            // Fallback: treat as character message
-            appendBubble(line, "character");
-        }
-    }
-}
-
-
-async function selectCharacter(name, element) {
-    characterName = name;
-    chatHeaderName.textContent = characterName;
-
-    // Update avatar
-    document.getElementById("chatHeaderAvatar").style.backgroundImage =
-        `url('/images/${characterName.toLowerCase()}.png')`;
-
-    // Update active class in sidebar
-    document.querySelectorAll(".character-item").forEach(item => {
-        item.classList.remove("active");
-    });
-    element.classList.add("active");
-
-    // Tell backend to switch character + load history
-    await fetch("/character/select", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: characterName })
-    });
-
-    await fetchHistory();
-
-    // Reset status
-    document.getElementById("chatHeaderStatus").textContent = "Online";
-}
-
-function showTyping() {
-    document.getElementById("chatHeaderStatus").textContent = "Typing...";
-
-    const row = document.createElement("div");
-    row.className = "message-row character";
-    row.id = "typingRow";
-
-    const bubble = document.createElement("div");
-    bubble.className = "message-bubble character";
-
-    const typing = document.createElement("div");
-    typing.className = "typing";
-    typing.innerHTML = `
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-    `;
-
-    bubble.appendChild(typing);
-    row.appendChild(bubble);
-    chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
-}
-
-function hideTyping() {
-    const row = document.getElementById("typingRow");
-    if (row) row.remove();
-
-    document.getElementById("chatHeaderStatus").textContent = "Online";
-}
 
 
 
-// Initial load: sync with backend and show history
-async function initCharacter() {
-    const res = await fetch("/character");
-    const data = await res.json();
-    characterName = data.name || "Jimmy";
-    chatHeaderName.textContent = characterName;
-
-    // Match sidebar selection
-    document.querySelectorAll(".character-item").forEach(item => {
-        if (item.dataset.name === characterName) {
-            item.classList.add("active");
-        } else {
-            item.classList.remove("active");
-        }
-    });
-
-    
-
-    document.getElementById("chatHeaderAvatar").style.backgroundImage =
-    `url('/images/${characterName.toLowerCase()}.png')`;
-
-    await fetchHistory();
-}
-
-initCharacter();
-</script>
+<!-- Modular JavaScript -->
+<script src="/js/ui.js"></script>
+<script src="/js/characters.js"></script>
+<script src="/js/history.js"></script>
+<script src="/js/chat.js"></script>
+<script src="/js/profile.js"></script>
 
 </body>
 </html>
