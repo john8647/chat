@@ -12,12 +12,29 @@ async function fetchHistory() {
         if (!line) continue;
         if (line.startsWith("Conversation history")) continue;
 
+        // USER MESSAGES
         if (line.startsWith("User:")) {
             appendBubble(line.replace("User:", "").trim(), "you");
-        } else if (line.startsWith(characterName + ":")) {
-            appendBubble(line.replace(characterName + ":", "").trim(), "character");
-        } else {
-            appendBubble(line, "character");
+            continue;
         }
+
+        // CHARACTER IMAGE MESSAGES
+        if (line.includes("[IMAGE:")) {
+            const match = line.match(/\[IMAGE:(.+?)\]/);
+            if (match) {
+                const filename = match[1];
+                appendImageBubble(filename, `${characterName}'s image`);
+            }
+            continue;
+        }
+
+        // CHARACTER TEXT MESSAGES
+        if (line.startsWith(characterName + ":")) {
+            appendBubble(line.replace(characterName + ":", "").trim(), "character");
+            continue;
+        }
+
+        // FALLBACK (character text)
+        appendBubble(line, "character");
     }
 }

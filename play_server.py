@@ -5,7 +5,7 @@ import random
 import requests
 import json
 import os
-
+from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 SERVER_URL = "https://baby-rack-rocky-ratio.trycloudflare.com:443/api/v1/generate"
 character_name = "undefined"
-
+character_profile_changes = ""
 lora = {"Chloe": "chloe_f1"}
 character_name = "undefined"
 persona = ""
@@ -32,6 +32,17 @@ TEST_MODE = True
 
 
 def test_requests(payload):
+    # Log cleaned history for debugging
+    cleaned_history = payload.get("prompt", "")
+
+    log_data = {
+        "timestamp": datetime.now().isoformat(),
+        "cleaned_history": cleaned_history
+    }
+
+    with open("Jimmy_test_clean_history.json", "w", encoding="utf-8") as f:
+        json.dump(log_data, f, indent=4)
+
     # Test replies
     test_replies = [
     f"{character_name} nods thoughtfully.",
@@ -52,7 +63,7 @@ def load_character_data():
     global persona, mood, outfit, char_location, inventory, history, character_name
     
 
-    filename = f"{character_name}_data.json"
+    filename = f"{character_name}.json"
     print(f"[LOAD] persona = {persona}")
     print(f"[LOAD] mood = {mood}")
     print(f"[LOAD] outfit = {outfit}")
@@ -80,11 +91,11 @@ def load_character_data():
         char_location = ""
         inventory = []
 
-    # Reset history header using new persona
-    history = persona + "\nConversation history:\n"
+    # Reset history header using new start.
+    history = "\nConversation history:\n"
 
-def save_character_data():
-    global persona, mood, outfit, char_location, inventory, character_name
+def save_character_data(new_data):
+    global character_profile_changes, persona, mood, outfit, char_location, inventory, character_name
 
     data = {
         "persona": persona,
@@ -93,13 +104,30 @@ def save_character_data():
         "location": char_location,
         "inventory": inventory
     }
-
+    
     with open(f"{character_name}.json", "w") as f:
         json.dump(data, f, indent=4)
+       
+    changes = []
 
-    print(f"[SAVE] Saved data for {character_name}")
+    if "mood" in new_data:
+        changes.append(f"Mood changed to: {new_data['mood']}")
 
+    if "location" in new_data:
+        changes.append(f"Location updated to: {new_data['location']}")
 
+    if "weather" in new_data:
+        changes.append(f"Weather now: {new_data['weather']}")
+
+    if "task" in new_data:
+        changes.append(f"Current task: {new_data['task']}")
+
+    # Add more fields as needed...
+
+    if changes:
+        character_profile_changes = "\n".join(changes)
+    else:
+        character_profile_changes = ""
 
 # ---------------------------------------------------------
 # Save / Load History
@@ -142,6 +170,38 @@ load_history()
 # ---------------------------------------------------------
 # Utility functions
 # ---------------------------------------------------------
+def clean_history_for_prompt(history, character_name):
+    lines = history.split("\n")
+    cleaned = []
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        # 1. Remove image markers entirely
+        if "[IMAGE:" in line:
+            continue
+
+        # 2. Always keep character messages (they matter for persona)
+        if line.startswith(f"{character_name}:"):
+            cleaned.append(line)
+            continue
+
+        # 3. User messages: keep only if >= 18 characters
+        if line.startswith("User:"):
+            msg = line.replace("User:", "").strip()
+            if len(msg) >= 18:
+                cleaned.append(line)
+            # short user messages are skipped
+            continue
+
+        # 4. Fallback: keep everything else
+        cleaned.append(line)
+
+    return "\n".join(cleaned)
+
+
 
 def get_clean_recent_context(history, persona, character_name,
                              min_length=20, max_lines=6):
@@ -189,18 +249,54 @@ def get_clean_recent_context(history, persona, character_name,
 # ---------------------------------------------------------
 
 def send_message(user_input):
-    global history, character_name
-    
+    global history, character_name, persona
+
+    parts = user_input.lower().strip().split()
+
+    # IMAGE COMMAND
+    if len(parts) == 2 and parts[0] == "image":
+        imagename = parts[1]
+        filename = f"{imagename}.png"
+
+        # Save image marker in REAL history (not persona)
+        history += f"{character_name}: [IMAGE:{filename}]\n"
+        save_history()
+
+        return {
+            "type": "image",
+            "filename": filename,
+            "caption": f"{character_name}'s {imagename} today."
+        }
+
+    # Append new user message to REAL history
     history += f"User: {user_input}\n{character_name}: "
 
+    # Build cleaned history (strip short messages, remove image markers)
+    cleaned_history = clean_history_for_prompt(history, character_name)
+
+    # ⭐ PREPEND PERSONA HERE — NOT IN SAVED HISTORY
+    # Build prompt dynamically
+    if character_profile_changes.strip():
+        prompt = (
+        persona
+        + "\n\nRecent Updates:\n"
+        + character_profile_changes
+        + "\n\nConversation history:\n"
+        + cleaned_history
+        )
+    else:
+        prompt = persona + "\n\nConversation history:\n" + cleaned_history
+
+
     payload = {
-        "prompt": history,
+        "prompt": prompt,
         "max_length": 200,
         "temperature": 0.7,
         "top_p": 0.9,
         "stop_sequence": ["User:", f"{character_name}:"]
     }
 
+    # Model call
     if TEST_MODE:
         data = test_requests(payload)
     else:
@@ -209,11 +305,16 @@ def send_message(user_input):
 
     reply = data["results"][0]["text"].strip()
 
+    # Append reply to REAL history
     history += reply + "\n"
     save_history()
+
     return reply
 
+
+
 def illustrate_scene():
+    global character_name, character_state
     recent = get_clean_recent_context(history, persona, character_name)
     lora_raw = lora.get(character_name, "")
     lora_name = f"Include this LoRA name: {lora_raw}" if lora_raw else ""
@@ -322,13 +423,44 @@ def update_character(req: dict):
 
     print("[UPDATE] Received update:", req)
 
-    persona = req.get("persona", persona)
-    mood = req.get("mood", mood)
-    outfit = req.get("outfit", outfit)
-    char_location = req.get("location", char_location)
-    inventory = req.get("inventory", inventory)
+    # Track changes
+    new_data = {}
 
-    save_character_data()
+    # Persona
+    new_persona = req.get("persona", persona)
+    if new_persona != persona:
+        new_data["persona"] = new_persona
+
+    # Mood
+    new_mood = req.get("mood", mood)
+    if new_mood != mood:
+        new_data["mood"] = new_mood
+
+    # Outfit
+    new_outfit = req.get("outfit", outfit)
+    if new_outfit != outfit:
+        new_data["outfit"] = new_outfit
+
+    # Location
+    new_location = req.get("location", char_location)
+    if new_location != char_location:
+        new_data["location"] = new_location
+
+    # Inventory
+    new_inventory = req.get("inventory", inventory)
+    if new_inventory != inventory:
+        new_data["inventory"] = new_inventory
+
+    # Only save if something changed
+    if new_data:
+        save_character_data(new_data)
+
+    # Now update the actual globals
+    persona = new_persona
+    mood = new_mood
+    outfit = new_outfit
+    char_location = new_location
+    inventory = new_inventory
 
     print("[UPDATE] Saved new values:")
     print(" persona =", persona)
@@ -338,6 +470,7 @@ def update_character(req: dict):
     print(" inventory =", inventory)
 
     return {"status": "ok"}
+
 
 
 
