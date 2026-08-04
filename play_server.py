@@ -171,35 +171,46 @@ load_history()
 # Utility functions
 # ---------------------------------------------------------
 def clean_history_for_prompt(history, character_name):
-    lines = history.split("\n")
+    shortest_message = 18
+    last_short_lines_kept_in = 4
+
+    lines = [line.strip() for line in history.split("\n") if line.strip()]
     cleaned = []
 
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
+    # We need to know which lines are the last N lines
+    total_lines = len(lines)
+    cutoff_index = total_lines - last_short_lines_kept_in
 
+    for i, line in enumerate(lines):
         # 1. Remove image markers entirely
         if "[IMAGE:" in line:
             continue
 
-        # 2. Always keep character messages (they matter for persona)
-        if line.startswith(f"{character_name}:"):
+        # 2. Always keep the last N lines (even if short)
+        if i >= cutoff_index:
             cleaned.append(line)
             continue
 
-        # 3. User messages: keep only if >= 18 characters
+        # 3. For older lines: keep only long messages
+        #    Applies to BOTH user and character
         if line.startswith("User:"):
             msg = line.replace("User:", "").strip()
-            if len(msg) >= 18:
+            if len(msg) >= shortest_message:
                 cleaned.append(line)
-            # short user messages are skipped
             continue
 
-        # 4. Fallback: keep everything else
-        cleaned.append(line)
+        if line.startswith(f"{character_name}:"):
+            msg = line.replace(f"{character_name}:", "").strip()
+            if len(msg) >= shortest_message:
+                cleaned.append(line)
+            continue
+
+        # 4. Fallback: keep only long non‑tagged lines
+        if len(line) >= shortest_message:
+            cleaned.append(line)
 
     return "\n".join(cleaned)
+
 
 
 
