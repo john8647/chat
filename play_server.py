@@ -64,39 +64,48 @@ def load_character_data():
     
 
     filename = f"{character_name}.json"
-    print(f"[LOAD] persona = {persona}")
-    print(f"[LOAD] mood = {mood}")
-    print(f"[LOAD] outfit = {outfit}")
-    print(f"[LOAD] location = {char_location}")
-    print(f"[LOAD] inventory = {inventory}")
+
     if os.path.exists(filename):
         try:
             with open(filename, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                print("[LOAD] RAW JSON:", data)
                 persona = data.get("persona", "")
                 mood = data.get("mood", "")
                 outfit = data.get("outfit", "")
                 char_location = data.get("location", "")
                 inventory = data.get("inventory", [])
 
-                print(f"Loaded data for {character_name}")
         except Exception as e:
             print(f"Error loading character data: {e}")
     else:
-        print(f"No data file found for {character_name}, using fallback.")
         persona = f"You are {character_name}."
         mood = ""
         outfit = ""
         char_location = ""
         inventory = []
 
-    # Reset history header using new start.
-    history = ""
-
 def save_character_data(new_data):
     global character_profile_changes, persona, mood, outfit, char_location, inventory, character_name
+    # Build update block FIRST
+    changes = []
+    if "persona" in new_data:
+        changes.append("Persona updated.")
+    if "mood" in new_data:
+        changes.append(f"Mood changed to: {new_data['mood']}")
+    if "outfit" in new_data:
+        changes.append(f"Outfit changed to: {new_data['outfit']}")
+    if "location" in new_data:
+        changes.append(f"Location updated is now: {new_data['location']}")
+    if "inventory" in new_data:
+        changes.append(f"Inventory updated now is: {new_data['inventory']}")
+    if "weather" in new_data:
+        changes.append(f"Weather now: {new_data['weather']}")
+    if "task" in new_data:
+        changes.append(f"Current task: {new_data['task']}")
 
+    character_profile_changes = "\n".join(changes) if changes else ""
+
+    # ⭐ NOW SAVE UPDATED CHARACTER DATA TO DISK
     data = {
         "persona": persona,
         "mood": mood,
@@ -104,30 +113,16 @@ def save_character_data(new_data):
         "location": char_location,
         "inventory": inventory
     }
-    
-    with open(f"{character_name}.json", "w") as f:
-        json.dump(data, f, indent=4)
-       
-    changes = []
 
-    if "mood" in new_data:
-        changes.append(f"Mood changed to: {new_data['mood']}")
+    filename = f"{character_name}.json"
 
-    if "location" in new_data:
-        changes.append(f"Location updated to: {new_data['location']}")
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print("=== DEBUG: JSON WRITE FAILED ===")
+        print("Error:", e)
 
-    if "weather" in new_data:
-        changes.append(f"Weather now: {new_data['weather']}")
-
-    if "task" in new_data:
-        changes.append(f"Current task: {new_data['task']}")
-
-    # Add more fields as needed...
-
-    if changes:
-        character_profile_changes = "\n".join(changes)
-    else:
-        character_profile_changes = ""
 
 # ---------------------------------------------------------
 # Save / Load History
@@ -153,14 +148,11 @@ def load_history():
             with open(filename, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 history = data.get("history", history)
-                print(f"Loaded history from {filename}")
+                
         except Exception as e:
             print(f"Error loading history: {e}")
     else:
-        print(f"No saved history found for {character_name}, using default.")
-
-
-
+        history = "Conversation history:\n"
 
 # Conversation and persona memory
 # history = persona + "Conversation history:\n"
@@ -284,26 +276,18 @@ def send_message(user_input):
 
     # Build cleaned history (strip short messages, remove image markers)
     cleaned_history = clean_history_for_prompt(history, character_name)
-   
+    
     # ⭐ PREPEND PERSONA HERE — NOT IN SAVED HISTORY
     # Build prompt dynamically
     if character_profile_changes.strip():
         prompt = (
         persona
         + "\n\nRecent Updates:\n"
-        + character_profile_changes
-        + "\n\nConversation history:\n"
+        + character_profile_changes + "\n"
         + cleaned_history
         )
-        print("The the prompt test text with recent update")
-        print(prompt)
-        print("The prompt test text ends")
     else:
-        prompt = persona + "\n\nConversation history:\n" + cleaned_history
-        print("The the prompt test text with no recent update")
-        print(prompt)
-        print("The prompt test text ends")
-
+        prompt = persona + "\n" + cleaned_history
 
     payload = {
         "prompt": prompt,
@@ -419,8 +403,6 @@ def select_character(req: dict):
 
     load_character_data()
     load_history()
-    print("[SELECT] Sending persona =", persona)
-    print("[SELECT] Sending location =", char_location)
 
     return {
         "status": "ok",
@@ -432,64 +414,44 @@ def select_character(req: dict):
         "inventory": inventory
     }
 
-
-
 @app.post("/character/update")
 def update_character(req: dict):
     global persona, mood, outfit, char_location, inventory, character_name
-
-    print("[UPDATE] Received update:", req)
-
-    # Track changes
     new_data = {}
 
-    # Persona
+    # Detect changes
     new_persona = req.get("persona", persona)
     if new_persona != persona:
         new_data["persona"] = new_persona
 
-    # Mood
     new_mood = req.get("mood", mood)
     if new_mood != mood:
         new_data["mood"] = new_mood
 
-    # Outfit
     new_outfit = req.get("outfit", outfit)
     if new_outfit != outfit:
         new_data["outfit"] = new_outfit
 
-    # Location
     new_location = req.get("location", char_location)
     if new_location != char_location:
         new_data["location"] = new_location
 
-    # Inventory
     new_inventory = req.get("inventory", inventory)
     if new_inventory != inventory:
         new_data["inventory"] = new_inventory
 
-    # Only save if something changed
-    if new_data:
-        save_character_data(new_data)
-
-    # Now update the actual globals
+    # ⭐ FIX: Update globals FIRST
     persona = new_persona
     mood = new_mood
     outfit = new_outfit
     char_location = new_location
     inventory = new_inventory
 
-    print("[UPDATE] Saved new values:")
-    print(" persona =", persona)
-    print(" mood =", mood)
-    print(" outfit =", outfit)
-    print(" location =", char_location)
-    print(" inventory =", inventory)
+    # ⭐ THEN save to JSON
+    if new_data:
+        save_character_data(new_data)
 
     return {"status": "ok"}
-
-
-
 
 # ---------------------------------------------------------
 # Run server
