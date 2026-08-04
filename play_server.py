@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Configuration
 # ---------------------------------------------------------
 
-SERVER_URL = "https://baby-rack-rocky-ratio.trycloudflare.com:443/api/v1/generate"
+SERVER_URL = "https://approximate-providence-partnership-aerial.trycloudflare.com:443/api/v1/generate"
 character_name = "undefined"
 character_profile_changes = ""
 lora = {"Chloe": "chloe_f1"}
@@ -24,7 +24,7 @@ mood = ""
 outfit = ""
 char_location = ""
 inventory = []
-history = "Conversation history:\n"
+history = ""
 
 
 TEST_MODE = True
@@ -92,7 +92,7 @@ def load_character_data():
         inventory = []
 
     # Reset history header using new start.
-    history = "\nConversation history:\n"
+    history = ""
 
 def save_character_data(new_data):
     global character_profile_changes, persona, mood, outfit, char_location, inventory, character_name
@@ -284,7 +284,7 @@ def send_message(user_input):
 
     # Build cleaned history (strip short messages, remove image markers)
     cleaned_history = clean_history_for_prompt(history, character_name)
-
+   
     # ⭐ PREPEND PERSONA HERE — NOT IN SAVED HISTORY
     # Build prompt dynamically
     if character_profile_changes.strip():
@@ -295,8 +295,14 @@ def send_message(user_input):
         + "\n\nConversation history:\n"
         + cleaned_history
         )
+        print("The the prompt test text with recent update")
+        print(prompt)
+        print("The prompt test text ends")
     else:
         prompt = persona + "\n\nConversation history:\n" + cleaned_history
+        print("The the prompt test text with no recent update")
+        print(prompt)
+        print("The prompt test text ends")
 
 
     payload = {
