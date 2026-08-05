@@ -1,13 +1,23 @@
 function openProfile() {
     const panel = document.getElementById("profilePanel");
+        // Update profile fields
+    let inv = [];
+
+    if (Array.isArray(inventory)) {
+        inv = inventory;
+    } else if (typeof inventory === "string" && inventory.length > 0) {
+        inv = inventory.split(",").map(x => x.trim());
+    }
 
     document.getElementById("profileName").textContent = characterName;
     document.getElementById("profilePersona").value = persona;
     document.getElementById("profileMood").value = mood;
     document.getElementById("profileOutfit").value = outfit;
     document.getElementById("profileLocation").value = charLocation;
-    document.getElementById("profileInventory").value = inventory.join(", ");
-
+    document.getElementById("profileInventory").value = inv.join(", ");
+    document.getElementById("profileDescription").value = description;
+    document.getElementById("profilePose").value = pose;
+    document.getElementById("profileAge").value = age;
     panel.style.display = "block";
 }
 
@@ -22,12 +32,15 @@ async function saveProfile() {
         mood: document.getElementById("profileMood").value,
         outfit: document.getElementById("profileOutfit").value,
         location: document.getElementById("profileLocation").value,
-        inventory: document.getElementById("profileInventory").value
+        inventory: document.getElementById("profileInventory").value,
+        description: document.getElementById("profileDescription").value,
+        pose: document.getElementById("profilePose").value,
+        age: document.getElementById("profileAge").value
             .split(",")
             .map(s => s.trim())
     };
 
-    console.log("[PROFILE] Sending update:", updated);
+    
 
     // IMPORTANT: Python server is on port 8000
     const response = await fetch("http://localhost:8000/character/update", {
@@ -37,14 +50,15 @@ async function saveProfile() {
     });
 
     const result = await response.json();
-    console.log("[PROFILE] Update response:", result);
-
+    
     // Update globals
     persona = updated.persona;
     mood = updated.mood;
     outfit = updated.outfit;
     charLocation = updated.location;
     inventory = updated.inventory;
-
+    description = updated.description;
+    pose = updated.pose;
+    age = updated.age;
     closeProfile();
 }

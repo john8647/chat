@@ -9,15 +9,20 @@ from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
 
 
-
 # ---------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------
-
-SERVER_URL = "https://approximate-providence-partnership-aerial.trycloudflare.com:443/api/v1/generate"
+TEST_MODE = True
+SERVER_URL = "https://mercury-features-plan-skip.trycloudflare.com:443/api/v1/generate"
 character_name = "undefined"
 character_profile_changes = ""
-lora = {"Chloe": "chloe_f1"}
+    # LoRA lookup table
+lora = {
+        "Jimmy": "jimmy_f1",
+        "Sarah": "sarah_f1",
+        "Chloe": "chloe_f1"
+        # add more characters here
+    }
 character_name = "undefined"
 persona = ""
 mood = ""
@@ -25,11 +30,27 @@ outfit = ""
 char_location = ""
 inventory = []
 history = ""
+description = ""
+pose = ""
+age = ""
 
+def generate_image():
+    global character_name, outfit, char_location
 
-TEST_MODE = True
+    # use Lookup LoRA name
+    lora_name = lora.get(character_name, "default_lora")
 
-
+    # Temporary test variables (later moved to profile panel)
+    ##person = "farmer, young man"
+    # Build the prompt
+    image_prompt = (
+        "Photorealistic:\n"
+        f"{lora_name}, real photo of {description}, {age}yo,\n"
+        f"wearing {outfit},\n"
+        f"{pose},\n"
+        f"scene location: {char_location}"
+    )
+    return image_prompt
 
 def test_requests(payload):
     # Log cleaned history for debugging
@@ -60,7 +81,7 @@ def test_requests(payload):
 
 # Persona and data
 def load_character_data():
-    global persona, mood, outfit, char_location, inventory, history, character_name
+    global persona, mood, outfit, char_location, inventory, history, character_name, description, pose, age
     
 
     filename = f"{character_name}.json"
@@ -74,6 +95,9 @@ def load_character_data():
                 outfit = data.get("outfit", "")
                 char_location = data.get("location", "")
                 inventory = data.get("inventory", [])
+                description = data.get("description","")
+                pose = data.get("pose","")
+                age = data.get("age","")
 
         except Exception as e:
             print(f"Error loading character data: {e}")
@@ -83,9 +107,12 @@ def load_character_data():
         outfit = ""
         char_location = ""
         inventory = []
+        description = ""
+        pose = ""
+        age = ""
 
 def save_character_data(new_data):
-    global character_profile_changes, persona, mood, outfit, char_location, inventory, character_name
+    global character_profile_changes, persona, mood, outfit, char_location, inventory, character_name, description, pose, age
     # Build update block FIRST
     changes = []
     if "persona" in new_data:
@@ -98,10 +125,8 @@ def save_character_data(new_data):
         changes.append(f"Location updated is now: {new_data['location']}")
     if "inventory" in new_data:
         changes.append(f"Inventory updated now is: {new_data['inventory']}")
-    if "weather" in new_data:
-        changes.append(f"Weather now: {new_data['weather']}")
-    if "task" in new_data:
-        changes.append(f"Current task: {new_data['task']}")
+    if "pose" in new_data:
+        changes.append(f"new pose is: {new_data['pose']}")
 
     character_profile_changes = "\n".join(changes) if changes else ""
 
@@ -111,11 +136,14 @@ def save_character_data(new_data):
         "mood": mood,
         "outfit": outfit,
         "location": char_location,
-        "inventory": inventory
+        "inventory": inventory,
+        "description": description,
+        "pose": pose,
+        "age": age
     }
 
     filename = f"{character_name}.json"
-
+    
     try:
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
@@ -271,6 +299,11 @@ def send_message(user_input):
             "caption": f"{character_name}'s {imagename} today."
         }
 
+    # ⭐ Only IMAGE Generator COMMAND INTERCEPT
+    if len(parts) == 1 and parts[0] == "show":
+        image_prompt = generate_image()
+        return f"generate_image() says | {image_prompt} | Later on we will use ComfyUI to make it!"
+
     # Append new user message to REAL history
     history += f"User: {user_input}\n{character_name}: "
 
@@ -292,7 +325,7 @@ def send_message(user_input):
     payload = {
         "prompt": prompt,
         "max_length": 200,
-        "temperature": 0.7,
+        "temperature": 0.8,
         "top_p": 0.9,
         "stop_sequence": ["User:", f"{character_name}:"]
     }
@@ -312,36 +345,6 @@ def send_message(user_input):
 
     return reply
 
-
-
-def illustrate_scene():
-    global character_name, character_state
-    recent = get_clean_recent_context(history, persona, character_name)
-    lora_raw = lora.get(character_name, "")
-    lora_name = f"Include this LoRA name: {lora_raw}" if lora_raw else ""
-
-    prompt = f"""
-Write a prompt for a realistic photographic scene.
-{lora_name}
-Subject:
-A person named {character_name}, wearing: {character_state['outfit']}
-
-Environment:
-The scene takes place in the location: {character_state['location']}
-
-Time and Mood:
-The time of day is {character_state['time']} and the mood is {character_state['mood']}.
-
-Recent Actions:
-\"\"\"{recent}\"\"\"
-"""
-
-    if TEST_MODE:
-        return f"[TEST MODE — Prompt Sent]\n\n{prompt}"
-
-    response = requests.post(SERVER_URL, json={"prompt": prompt})
-    data = response.json()
-    return data["results"][0]["text"].strip()
 
 # ---------------------------------------------------------
 # FastAPI server
@@ -393,7 +396,7 @@ def reset():
 
 @app.post("/character/select")
 def select_character(req: dict):
-    global character_name, history, mood, outfit, char_location, inventory
+    global character_name, history, mood, outfit, char_location, inventory, description, pose, age
     
     new_name = req.get("name")
     if not new_name:
@@ -411,12 +414,15 @@ def select_character(req: dict):
         "mood": mood,
         "outfit": outfit,
         "location": char_location,
-        "inventory": inventory
+        "inventory": inventory,
+        "description": description,
+        "pose": pose,
+        "age": age
     }
 
 @app.post("/character/update")
 def update_character(req: dict):
-    global persona, mood, outfit, char_location, inventory, character_name
+    global persona, mood, outfit, char_location, inventory, character_name, description, pose, age
     new_data = {}
 
     # Detect changes
@@ -436,9 +442,69 @@ def update_character(req: dict):
     if new_location != char_location:
         new_data["location"] = new_location
 
-    new_inventory = req.get("inventory", inventory)
-    if new_inventory != inventory:
-        new_data["inventory"] = new_inventory
+
+# --- INVENTORY NORMALIZATION ---
+    raw_inventory = req.get("inventory", inventory)
+
+    if raw_inventory != inventory:
+    # Normalize inventory
+        if isinstance(raw_inventory, str):
+        # Convert "Shears, Bucket" → ["Shears", "Bucket"]
+            new_inventory = [item.strip() for item in raw_inventory.split(",") if item.strip()]
+        else:
+            new_inventory = raw_inventory
+    else:
+        new_inventory = inventory
+
+
+    # --- DESCRIPTION NORMALIZATION ---
+    raw_description = req.get("description", description)
+
+    if raw_description != description:
+        # Normalize description
+        if isinstance(raw_description, list):
+        # Convert ["a young man a farmer"] → "a young man a farmer"
+            new_description = " ".join(raw_description)
+        else:
+            new_description = raw_description
+    else:
+    # No change → keep existing
+        new_description = description
+
+    # --- POSE ---
+    raw_pose = req.get("pose", pose)
+
+    if raw_pose != pose:
+        if isinstance(raw_pose, list):
+            new_pose = " ".join(raw_pose)
+        else:
+            new_pose = raw_pose
+    else:
+        new_pose = pose
+
+
+    # --- AGE ---
+    raw_age = req.get("age", age)
+
+    if raw_age != age:
+        if isinstance(raw_age, list):
+            new_age = " ".join(raw_age)
+        else:
+            new_age = raw_age
+    else:
+        new_age = age
+    # Test area.
+    print("\n=== UPDATE_CHARACTER CALLED ===")
+    print("Incoming request:", req)
+    print("Current globals BEFORE update:")
+    print(" persona =", persona)
+    print(" mood =", mood)
+    print(" outfit =", outfit)
+    print(" location =", char_location)
+    print(" inventory =", inventory, type(inventory))
+    print(" description =", description, type(description))
+    print(" pose =", pose, type(pose))
+    print(" age =", age, type(age))
 
     # ⭐ FIX: Update globals FIRST
     persona = new_persona
@@ -446,7 +512,9 @@ def update_character(req: dict):
     outfit = new_outfit
     char_location = new_location
     inventory = new_inventory
-
+    description = new_description
+    pose = new_pose
+    age = new_age
     # ⭐ THEN save to JSON
     if new_data:
         save_character_data(new_data)

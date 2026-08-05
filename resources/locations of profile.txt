@@ -1,0 +1,23 @@
+profile options locations to update list
+
+body_pose = "leaning against a tree"
+age = "45"
+
+    <label>Pose</label>
+    <input id="profilePose">
+
+    <label>Age</label>
+    <input id="profileAge">
+pose
+age
+
+
+1. add to html as a page id  
+2. add to ui as a javascript variable
+3. add to charactaer as a javascript state read and assignment and document id reader
+3a. add to three places in profile as javascript to open, save and update the value from the document to the map json for python
+4. add to python load character data function for open
+5. add to python save character data, but optionally not include it in the changes set so details ignored by prompt builder
+6. add to python select character 
+7. add to python update character remember to add global variables to these functions
+8. add to python declarations

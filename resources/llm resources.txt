@@ -1,0 +1,8 @@
+KoboldAI/LLaMA2-13B-Psyfighter2
+https://huggingface.co/KoboldAI/LLaMA2-13B-Psyfighter2-GGUF/resolve/main/LLaMA2-13B-Psyfighter2.Q4_K_S.gguf
+
+LLaMA2-13B-Tiefighter.
+https://huggingface.co/KoboldAI/LLaMA2-13B-Tiefighter-GGUF/resolve/main/LLaMA2-13B-Tiefighter.Q4_K_S.gguf
+
+fisher yates shuffle
+ 

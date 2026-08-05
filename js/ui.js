@@ -5,7 +5,9 @@ let mood = "";
 let outfit = "";
 let charLocation = "";
 let inventory = [];
-
+let description = ""
+let pose = ""
+let age = ""
 window.addEventListener("DOMContentLoaded", () => {
     const defaultItem = document.querySelector('.character-item[data-name="Jimmy"]');
     if (defaultItem) {
