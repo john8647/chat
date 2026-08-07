@@ -30,7 +30,7 @@ window.addEventListener("DOMContentLoaded", () => {
 function updateHeader() {
     document.getElementById("chatHeaderName").textContent = characterName;
     document.getElementById("chatHeaderAvatar").style.backgroundImage =
-        `url('/images/${characterName.toLowerCase()}.png')`;
+        `url('http://localhost:8000/images/${characterName.toLowerCase()}.png')`;
 }
 
 function setStatus(text) {

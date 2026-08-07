@@ -1,3 +1,12 @@
+
+async function loadCharacterName() {
+    const res = await fetch("http://localhost:8000/active_character");
+    const data = await res.json();
+    characterName = data.character;
+}
+
+loadCharacterName();
+
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 
@@ -7,18 +16,18 @@ function appendImageBubble(filename, caption) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = "images/" + characterName + ".png";
+    avatar.src =  "http://localhost:8000/images/" + characterName + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "image-bubble";
 
     const img = document.createElement("img");
-    img.src = "images/" + filename;
+    img.src = "http://localhost:8000/images/" + filename;
     img.className = "chat-image";
 
     img.onclick = function () {
         //console.log("Thumbnail clicked for:", filename);
-        openImageModal("images/" + filename);
+        openImageModal("http://localhost:8000/images/" + filename);
     };
 
     const cap = document.createElement("div");
@@ -55,7 +64,7 @@ function appendBubble(text, who) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "images/you.png" : "images/" + characterName + ".png";
+    avatar.src = who === "you" ? "http://localhost:8000/images/you.png" : "http://localhost:8000/images/" + characterName + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "message-bubble " + (who === "you" ? "message-right" : "message-left");
@@ -107,7 +116,7 @@ function appendBubble(text, who) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "images/you.png" : "images/" + characterName + ".png";
+    avatar.src = who === "you" ? "http://localhost:8000/images/you.png" : "http://localhost:8000/images/" + characterName + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "message-bubble " + (who === "you" ? "message-right" : "message-left");
@@ -186,8 +195,37 @@ async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
 
-    const parts = text.split(" ");
-    const isImageCommand = parts[0].toLowerCase() === "image" && parts.length === 2;
+    const firstLetter = characterName[0].toLowerCase();
+    console.log(text)
+    // ⭐ Direct speech command detection (split by colon)
+    const colonParts = text.split(":");
+    if (colonParts.length > 1 && colonParts[0].trim().toLowerCase() === firstLetter) {
+
+    const directText = colonParts.slice(1).join(":").trim();
+
+    // Send to backend to write JSON
+    await fetch("http://localhost:8000/direct_character_say", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            character: characterName,   // ⭐ FIXED
+            text: directText
+        })
+    });
+
+    // Append locally
+    //appendBubble(characterName, directText);  // ⭐ WRONG
+    appendBubble(directText, "character"); // ⭐ Correct
+    input.value = "";
+    return;
+    
+    }
+
+    // ⭐ Image command detection (split by space)
+    const spaceParts = text.split(" ");
+    const isImageCommand =
+        spaceParts[0].toLowerCase() === "image" &&
+        spaceParts.length === 2;
 
     // Only show user bubble if NOT an image command
     if (!isImageCommand) {
@@ -210,13 +248,12 @@ async function sendMessage() {
     hideTyping();
 
     if (data.reply && data.reply.type === "image") {
-        
         appendImageBubble(data.reply.filename, data.reply.caption);
     } else {
-        
         appendBubble(data.reply, "character");
     }
 }
+
 
 
 

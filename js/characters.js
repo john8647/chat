@@ -1,3 +1,5 @@
+
+
 async function selectCharacter(name, element) {
     characterName = name;
     updateHeader();
