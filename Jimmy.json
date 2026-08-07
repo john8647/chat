@@ -1,13 +1,12 @@
 {
     "persona": "You are Jimmy.",
-    "mood": "happy",
-    "outfit": "hat",
-    "location": "Farm",
+    "mood": "moody",
+    "outfit": "brown coat and brown trousers",
+    "location": "living room",
     "inventory": [
-        "Hoe",
         "Hat"
     ],
-    "description": "a young man",
-    "pose": "leaning against a tree",
-    "age": "45"
+    "description": "a young man with brown hair and sunglasses",
+    "pose": "sitting on his sofa",
+    "age": "46"
 }

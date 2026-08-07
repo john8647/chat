@@ -10,7 +10,10 @@
 <div class="app">
     <!-- Sidebar -->
     <div class="sidebar">
-        <div class="sidebar-header">Characters</div>
+        <div class="sidebar-header">
+            <h2>Chat Game</h2>
+            <button id="global-options-btn" onclick="openGlobalOptions()">⋮</button>
+            </div>
         <div class="character-list">
            <div class="character-item active" data-name="Jimmy" onclick="selectCharacter('Jimmy', this)">
                 <div class="avatar" style="background-image:url('/images/jimmy.png'); background-size:cover;"></div>
@@ -72,15 +75,34 @@
 </div>
 </div>
 
+
         <div class="chat-window" id="chat"></div>
         <div class="input-area">
             <input id="input" placeholder="Type a message" />
             <button class="send-btn" onclick="sendMessage()">Send</button>
         </div>
     </div>
+
+
+
 </div>
 
 
+
+<div id="global-options-modal" class="hidden">
+    <h3>Global Options</h3>
+    <label>Server URL</label>
+    <input id="server-url-input" type="text" placeholder="Cloudflare URL">
+    <label>Image Gen Server URL</label>
+    <input id="image-url-input" type="text" placeholder="Cloudflare URL">
+    <button id="save-options-btn">Save</button>
+    <button id="close-options" onclick="closeGlobalOptions()">Close</button>
+</div>
+
+<div id="image-modal" class="hidden">
+    <div id="image-modal-backdrop"></div>
+    <img id="image-modal-img">
+</div>
 
 
 <!-- Modular JavaScript -->
@@ -89,6 +111,5 @@
 <script src="/js/history.js"></script>
 <script src="/js/chat.js"></script>
 <script src="/js/profile.js"></script>
-
 </body>
 </html>

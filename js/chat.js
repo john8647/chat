@@ -1,6 +1,106 @@
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 
+function appendImageBubble(filename, caption) {
+    const row = document.createElement("div");
+    row.className = "message-row message-left";
+
+    const avatar = document.createElement("img");
+    avatar.className = "avatar-chat";
+    avatar.src = "images/" + characterName + ".png";
+
+    const bubble = document.createElement("div");
+    bubble.className = "image-bubble";
+
+    const img = document.createElement("img");
+    img.src = "images/" + filename;
+    img.className = "chat-image";
+
+    img.onclick = function () {
+        //console.log("Thumbnail clicked for:", filename);
+        openImageModal("images/" + filename);
+    };
+
+    const cap = document.createElement("div");
+    cap.className = "image-caption";
+    cap.textContent = caption;
+
+    bubble.appendChild(img);
+    bubble.appendChild(cap);
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+
+    chat.appendChild(row);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+
+
+function appendBubble(text, who) {
+
+    // ⭐ If this is an image marker, redirect to appendImageBubble
+    if (text.includes("[IMAGE:")) {
+        const match = text.match(/\[IMAGE:(.+?)\]/);
+        if (match) {
+            const filename = match[1];
+            appendImageBubble(filename, `${characterName} sent.`);
+            return; // ⭐ Stop normal bubble rendering
+        }
+    }
+
+    // ⭐ Normal text bubble continues here
+    const row = document.createElement("div");
+    row.className = "message-row " + (who === "you" ? "message-right" : "message-left");
+
+    const avatar = document.createElement("img");
+    avatar.className = "avatar-chat";
+    avatar.src = who === "you" ? "images/you.png" : "images/" + characterName + ".png";
+
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble " + (who === "you" ? "message-right" : "message-left");
+
+    const timestamp = document.createElement("div");
+    timestamp.className = "timestamp";
+    timestamp.textContent = formatTimestamp(new Date());
+
+    bubble.innerHTML = text;
+    bubble.appendChild(timestamp);
+
+    if (who === "you") {
+        row.appendChild(bubble);
+        row.appendChild(avatar);
+    } else {
+        row.appendChild(avatar);
+        row.appendChild(bubble);
+    }
+
+    chat.appendChild(row);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+
+function showTyping() {
+    setStatus("Typing...");
+
+    const row = document.createElement("div");
+    row.className = "message-row message-left";
+    row.id = "typingRow";
+
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble message-left";
+
+    bubble.innerHTML = `
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+    `;
+
+    row.appendChild(bubble);
+    chat.appendChild(row);
+    chat.scrollTop = chat.scrollHeight;
+}
+
 function appendBubble(text, who) {
     const row = document.createElement("div");
     row.className = "message-row " + (who === "you" ? "message-right" : "message-left");
@@ -32,58 +132,49 @@ function appendBubble(text, who) {
 }
 
 
+function openImageModal(src) {
+    //console.log("openImageModal called with:", src);
 
-function showTyping() {
-    setStatus("Typing...");
+    const modal = document.getElementById("image-modal");
+    const img = document.getElementById("image-modal-img");
 
-    const row = document.createElement("div");
-    row.className = "message-row message-left";
-    row.id = "typingRow";
+    if (!modal) {
+        console.log("ERROR: #image-modal not found in DOM");
+        return;
+    }
 
-    const bubble = document.createElement("div");
-    bubble.className = "message-bubble message-left";
+    if (!img) {
+        console.log("ERROR: #image-modal-img not found in DOM");
+        return;
+    }
 
-    bubble.innerHTML = `
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-    `;
+    img.src = src;
+    //console.log("Image src set:", img.src);
 
-    row.appendChild(bubble);
-    chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
+    //modal.classList.remove("hidden");
+    document.getElementById("image-modal").classList.remove("hidden");
+    //console.log("Modal should now be visible");
 }
 
-function appendImageBubble(filename, caption) {
-    const row = document.createElement("div");
-    row.className = "message-row message-left";
 
-    const avatar = document.createElement("img");
-    avatar.className = "avatar-chat";
-    avatar.src = "images/" + characterName + ".png";
 
-    const bubble = document.createElement("div");
-    bubble.className = "image-bubble";
+document.getElementById("image-modal-backdrop").onclick = () => {
+    document.getElementById("image-modal").classList.add("hidden");
+};
 
-    const img = document.createElement("img");
-    img.src = "images/" + filename;
-    img.className = "chat-image";
 
-    const cap = document.createElement("div");
+document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("image-modal");
+    //console.log("Modal display:", window.getComputedStyle(modal).display);
+});
+
+
+ 
+ 
+
+const cap = document.createElement("div");
     cap.className = "image-caption";
-    cap.textContent = caption;
-
-    bubble.appendChild(img);
-    bubble.appendChild(cap);
-
-    row.appendChild(avatar);
-    row.appendChild(bubble);
-
-    chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
-}
-
-
+    
 function hideTyping() {
     const row = document.getElementById("typingRow");
     if (row) row.remove();

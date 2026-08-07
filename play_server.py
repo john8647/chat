@@ -5,15 +5,32 @@ import random
 import requests
 import json
 import os
+import uuid
+import time
 from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
-
 
 # ---------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------
 TEST_MODE = True
-SERVER_URL = "https://mercury-features-plan-skip.trycloudflare.com:443/api/v1/generate"
+TEST_MODE_IMAGE = True
+SERVER_URL = ""
+IMAGE_GEN_SERVER_URL = ""
+
+
+def evaluate_test_mode():
+    global TEST_MODE, TEST_MODE_IMAGE, SERVER_URL, IMAGE_GEN_SERVER_URL
+
+    TEST_MODE = not SERVER_URL or not SERVER_URL.strip()
+    TEST_MODE_IMAGE = not IMAGE_GEN_SERVER_URL or not IMAGE_GEN_SERVER_URL.strip()
+
+    print("TEST_MODE =", TEST_MODE)
+    print("TEST_MODE_IMAGE =", TEST_MODE_IMAGE)
+
+
+
+
 character_name = "undefined"
 character_profile_changes = ""
     # LoRA lookup table
@@ -34,8 +51,150 @@ description = ""
 pose = ""
 age = ""
 
-def generate_image():
-    global character_name, outfit, char_location
+def normalize_queue_item(item):
+    # Some ComfyUI builds return [ {job} ]
+    if isinstance(item, list) and len(item) > 0 and isinstance(item[0], dict):
+        return item[0]
+    # Normal case: item is already a dict
+    if isinstance(item, dict):
+        return item
+    return None
+ 
+
+def generate_image(prompt):
+    if not comfyui_alive():
+        print("ComfyUI server is NOT alive or unreachable.")
+        return None
+
+    # 1. Load workflow
+    workflow_path = "resources/comfyui_api/image_workflow.json"
+    with open(workflow_path, "r") as f:
+        workflow = json.load(f)
+
+    # 2. Insert prompt
+    workflow["6"]["inputs"]["text"] = (
+        prompt
+    )
+
+    # 3. Insert random filename prefix 
+    random_prefix = str(uuid.uuid4())
+    workflow["78"]["inputs"]["filename_prefix"] = random_prefix
+    workflow["28"]["inputs"]["lora_1"]["on"] = "false"
+    # 4. Submit workflow
+    resp = requests.post(
+        f"{IMAGE_GEN_SERVER_URL}/prompt",
+        json={"prompt": workflow}
+    )
+    data = resp.json()
+    prompt_id = data["prompt_id"]
+
+    print("Prompt ID:", prompt_id)
+    result = None
+    initialwait = True
+    start_time = time.time()
+    MAX_WAIT = 300  # 5 minutes
+
+    while True:
+        if time.time() - start_time > MAX_WAIT:
+            print("ERROR: Image generation timed out.")
+            return None
+
+        if initialwait:
+            time.sleep(20)
+            initialwait = False
+            continue
+
+        queue = requests.get(f"{IMAGE_GEN_SERVER_URL}/queue").json()
+
+        all_items = (
+            queue.get("queue_pending", []) +
+            queue.get("queue_running", []) +
+            queue.get("queue_done", [])
+        )
+
+        print("QUEUE:", all_items)
+        # ⭐ If queue is empty, job is finished — fetch history
+        if not all_items:
+            print("Queue empty — job finished. Fetching history…")
+            history = requests.get(f"{IMAGE_GEN_SERVER_URL}/history/{prompt_id}").json()
+            result = history
+            print(result)
+            break
+
+        # ⭐ Otherwise check for completed job
+        for raw_item in all_items:
+            item = normalize_queue_item(raw_item)
+            if not item:
+                continue
+
+            if item.get("prompt_id") == prompt_id:
+                status = item.get("status")
+                if status in ("completed", "success", "done") or "outputs" in item:
+                    result = item
+                    break
+
+        if result is not None:
+            break
+
+        time.sleep(1)
+
+
+
+    print("FINAL RESULT:", result)
+
+
+    # 6. Extract output filename
+    # result is: { "<prompt_id>": { ... } }
+    prompt_result = result[prompt_id]
+
+    # SaveImage output is inside "outputs"
+    output_node = prompt_result["outputs"]["78"]
+    filename = output_node["images"][0]["filename"]
+
+    print("Generated filename:", filename)
+
+    # 7. Download image
+    img_data = requests.get(
+        f"{IMAGE_GEN_SERVER_URL}/view?filename={filename}"
+    ).content
+
+    # 8. Save to images folder
+    save_path = os.path.join("images", filename)
+    with open(save_path, "wb") as f:
+        f.write(img_data)
+
+    print("Saved to:", save_path)
+
+    return filename
+
+def comfyui_alive():
+    try:
+        r = requests.get(f"{IMAGE_GEN_SERVER_URL}/system_stats", timeout=5)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+
+
+def build_holding_text(inventory):
+    if not inventory:
+        return ""  # no holding line at all
+
+    if len(inventory) == 1:
+        return f"Holding a {inventory[0]}."
+
+    if len(inventory) == 2:
+        return f"Holding a {inventory[0]} and a {inventory[1]}."
+
+    # 3 or more items
+    items = ", ".join(inventory[:-1])
+    last = inventory[-1]
+    return f"Holding {items}, and a {last}."
+
+
+def generate_image_prompt():
+    global character_name, outfit, char_location, description, age, pose, mood, inventory
 
     # use Lookup LoRA name
     lora_name = lora.get(character_name, "default_lora")
@@ -44,12 +203,15 @@ def generate_image():
     ##person = "farmer, young man"
     # Build the prompt
     image_prompt = (
-        "Photorealistic:\n"
-        f"{lora_name}, real photo of {description}, {age}yo,\n"
-        f"wearing {outfit},\n"
-        f"{pose},\n"
-        f"scene location: {char_location}"
+    "Photorealistic portrait.\n"
+    f"LoRA: {lora_name}.\n"
+    f"A real photo of {description}, age {age}.\n"
+    f"{pose}, looking {mood}.\n"
+    f"Wearing {outfit}. "
+    f"{build_holding_text(inventory)}\n"
+    f"Scene: {char_location}."
     )
+
     return image_prompt
 
 def test_requests(payload):
@@ -280,7 +442,7 @@ def get_clean_recent_context(history, persona, character_name,
 # ---------------------------------------------------------
 
 def send_message(user_input):
-    global history, character_name, persona
+    global history, character_name, persona, character_profile_changes
 
     parts = user_input.lower().strip().split()
 
@@ -301,10 +463,22 @@ def send_message(user_input):
 
     # ⭐ Only IMAGE Generator COMMAND INTERCEPT
     if len(parts) == 1 and parts[0] == "show":
-        image_prompt = generate_image()
-        return f"generate_image() says | {image_prompt} | Later on we will use ComfyUI to make it!"
+        print("Calling image generator")
+        filename = generate_image(generate_image_prompt())
+        print(f"Working on image with this prompt {generate_image_prompt()}")
+
+        # ⭐ Add Jimmy’s image to history (but NOT the 'show' command)
+        history += f"{character_name}: [IMAGE:{filename}]\n"
+        save_history()
+
+        return {
+            "type": "image",
+            "filename": filename,
+            "caption": f"{character_name} sent."
+        }
 
     # Append new user message to REAL history
+    
     history += f"User: {user_input}\n{character_name}: "
 
     # Build cleaned history (strip short messages, remove image markers)
@@ -319,6 +493,7 @@ def send_message(user_input):
         + character_profile_changes + "\n"
         + cleaned_history
         )
+        character_profile_changes = ""
     else:
         prompt = persona + "\n" + cleaned_history
 
@@ -351,16 +526,66 @@ def send_message(user_input):
 # ---------------------------------------------------------
 
 app = FastAPI()
+
+
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
+class ServerUrlUpdate(BaseModel):
+    server_url: str
+
+@app.post("/update_server_url")
+def update_server_url(data: ServerUrlUpdate):
+    global SERVER_URL
+    url = data.server_url
+    if url and data.server_url.strip():
+        SERVER_URL = url.strip()
+        print(f"Server changed to {SERVER_URL}")
+        evaluate_test_mode()
+    return {"ok": True}
+
+
+class ImageUrlUpdate(BaseModel):
+    image_url: str
+
+@app.post("/update_image_url")
+def update_image_url(data: ImageUrlUpdate):
+    global IMAGE_GEN_SERVER_URL
+    url = data.image_url
+    if url and url.strip():
+        IMAGE_GEN_SERVER_URL = url.strip()
+        print(f"Image server changed to {IMAGE_GEN_SERVER_URL}")
+        evaluate_test_mode()
+    return {"ok": True}
+
+
+@app.get("/ping_server")
+def ping_server():
+    import requests
+    try:
+        r = requests.get(SERVER_URL, timeout=3)
+        print("PASS Ping test")
+        print(TEST_MODE)
+        print(TEST_MODE_IMAGE)
+        return {"ok": True, "status": r.status_code}
+    except Exception as e:
+        print("Fail Ping test")
+        print(TEST_MODE)
+        print(TEST_MODE_IMAGE)
+        return {"ok": False, "error": str(e)}
+
+
+
 class ChatRequest(BaseModel):
     message: str
+
 
 @app.post("/chat")
 def chat(req: ChatRequest):
@@ -451,8 +676,10 @@ def update_character(req: dict):
         if isinstance(raw_inventory, str):
         # Convert "Shears, Bucket" → ["Shears", "Bucket"]
             new_inventory = [item.strip() for item in raw_inventory.split(",") if item.strip()]
+            new_data["inventory"] = new_inventory
         else:
             new_inventory = raw_inventory
+            new_data["inventory"] = new_inventory
     else:
         new_inventory = inventory
 
@@ -465,8 +692,10 @@ def update_character(req: dict):
         if isinstance(raw_description, list):
         # Convert ["a young man a farmer"] → "a young man a farmer"
             new_description = " ".join(raw_description)
+            new_data["description"] = new_description
         else:
             new_description = raw_description
+            new_data["description"] = new_description
     else:
     # No change → keep existing
         new_description = description
@@ -477,8 +706,10 @@ def update_character(req: dict):
     if raw_pose != pose:
         if isinstance(raw_pose, list):
             new_pose = " ".join(raw_pose)
+            new_data["pose"] = new_pose
         else:
             new_pose = raw_pose
+            new_data["pose"] = new_pose
     else:
         new_pose = pose
 
@@ -494,17 +725,6 @@ def update_character(req: dict):
     else:
         new_age = age
     # Test area.
-    print("\n=== UPDATE_CHARACTER CALLED ===")
-    print("Incoming request:", req)
-    print("Current globals BEFORE update:")
-    print(" persona =", persona)
-    print(" mood =", mood)
-    print(" outfit =", outfit)
-    print(" location =", char_location)
-    print(" inventory =", inventory, type(inventory))
-    print(" description =", description, type(description))
-    print(" pose =", pose, type(pose))
-    print(" age =", age, type(age))
 
     # ⭐ FIX: Update globals FIRST
     persona = new_persona
