@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 # ---------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------
+reply_mode = True
 TEST_MODE = True
 TEST_MODE_IMAGE = True
 SERVER_URL = ""
@@ -32,21 +33,29 @@ def evaluate_test_mode():
 character_name = "undefined"
 character_profile_changes = ""
 
+##lora = {
+    ##"Jimmy": "jimmy_f1",
+    ##"Sarah": "sarah_f1",
+    ##"Chloe": "chloe_f1"
+##}
+
 lora = {
     "Jimmy": "jimmy_f1",
     "Sarah": "sarah_f1",
-    "Chloe": "chloe_f1"
+    "Chloe": "chloe_f0"
 }
-
+##character
 persona = ""
 mood = ""
 outfit = ""
 char_location = ""
 inventory = []
+emptyhanded = True
 history = ""
 description = ""
 pose = ""
 age = ""
+
 
 # ---------------------------------------------------------
 # Image generation helpers
@@ -142,6 +151,42 @@ def generate_image(prompt):
 
     return filename
 
+def generate_image_prompt():
+    global character_name, outfit, char_location, description, age, pose, mood, inventory
+
+    # use Lookup LoRA name
+    lora_name = lora.get(character_name, "default_lora")
+
+    # Build the prompt
+    image_prompt = (
+        "Photorealistic portrait.\n"
+        f"LoRA: {lora_name}.\n"
+        f"A real photo of {description}, age {age}.\n"
+        f"{pose}, looking {mood}.\n"
+        f"Wearing {outfit}. "
+        f"{build_holding_text(inventory)}\n"
+        f"Scene: {char_location}."
+    )
+
+    return image_prompt
+
+
+def build_holding_text(inventory):
+    if not inventory:
+        return ""  # no holding line at all
+
+    if len(inventory) == 1:
+        return f"Holding a {inventory[0]}."
+
+    if len(inventory) == 2:
+        return f"Holding a {inventory[0]} and a {inventory[1]}."
+
+    # 3 or more items
+    items = ", ".join(inventory[:-1])
+    last = inventory[-1]
+    return f"Holding {items}, and a {last}."
+
+
 # ---------------------------------------------------------
 # Character data loading/saving
 # ---------------------------------------------------------
@@ -153,7 +198,7 @@ def load_character_data():
         try:
             with open(filename, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                persona = data.get("persona", "")
+                persona = data.get("persona", "").replace("\n", "")
                 mood = data.get("mood", "")
                 outfit = data.get("outfit", "")
                 char_location = data.get("location", "")
@@ -174,8 +219,32 @@ def load_character_data():
         age = ""
 
 def save_character_data(new_data):
-    global persona, mood, outfit, char_location, inventory, description, pose, age, character_name
+    global character_profile_changes, persona, mood, outfit, char_location, inventory, character_name, description, pose, age, emptyhanded
+    # Build update block FIRST
+    changes = []
+    if "persona" in new_data:
+        changes.append("Persona updated.")
+    if "mood" in new_data:
+        changes.append(f"Mood changed to: {new_data['mood']}")
+    if "outfit" in new_data:
+        changes.append(f"Outfit changed to: {new_data['outfit']}")
+    if "location" in new_data:
+        changes.append(f"Location updated is now: {new_data['location']}")
+    if "inventory" in new_data:
+        if(len(new_data['inventory']) > 0):
+            if(emptyhanded == True):
+                emptyhanded = False
+                changes.append(f"Inventory updated now is: {new_data['inventory']}")
+        else:
+            if(emptyhanded == False):
+                changes.append(f"{character_name} has nothing in their hands.")    
+                emptyhanded = True
+    if "pose" in new_data:
+        changes.append(f"new pose is: {new_data['pose']}")
 
+    character_profile_changes = "\n".join(changes) if changes else ""
+
+    # ⭐ NOW SAVE UPDATED CHARACTER DATA TO DISK
     data = {
         "persona": persona,
         "mood": mood,
@@ -188,8 +257,13 @@ def save_character_data(new_data):
     }
 
     filename = f"{character_name}.json"
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4)
+    
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print("=== DEBUG: JSON WRITE FAILED ===")
+        print("Error:", e)
 
 # ---------------------------------------------------------
 # History
@@ -217,10 +291,103 @@ def load_history():
 load_character_data()
 load_history()
 
+
+def test_requests(payload):
+    global character_name
+
+    test_replies = [
+        f"{character_name} nods thoughtfully.",
+        f"{character_name} adjusts his straw hat.",
+        f"{character_name} looks around the farmyard.",
+        f"{character_name} smiles warmly.",
+        f"{character_name} takes a slow breath and continues.",
+        f"{character_name} steps closer and speaks softly."
+    ]
+
+    # ⭐ MUST return a string, not a dict
+    return random.choice(test_replies)
+
+
+def clean_history_for_prompt(history: str) -> str:
+    shortest_message = 18
+    last_short_lines_kept_in = 6
+
+    cleaned_lines = []
+
+    # First pass: remove commands and image markers
+    for raw_line in history.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        # Split speaker + content
+        if ": " in line:
+            speaker, content = line.split(": ", 1)
+        else:
+            speaker = ""
+            content = line
+
+        lower = content.lower().strip()
+
+        # Remove image markers
+        if content.startswith("[IMAGE:"):
+            continue
+
+        # Remove commands
+        if lower == "show":
+            continue
+        if lower.startswith("image "):
+            continue
+
+        # Keep speaker + content together
+        if speaker:
+            cleaned_lines.append(f"{speaker}: {content}")
+        else:
+            cleaned_lines.append(content)
+
+    # Second pass: short-line filtering
+    final_lines = []
+    total_lines = len(cleaned_lines)
+    cutoff_index = total_lines - last_short_lines_kept_in
+
+    for index, line in enumerate(cleaned_lines):
+        # Extract content again for length check
+        if ": " in line:
+            _, content = line.split(": ", 1)
+        else:
+            content = line
+
+        # Keep long lines always
+        if len(content) >= shortest_message:
+            final_lines.append(line)
+            continue
+
+        # Keep short lines only if they are in the last N lines
+        if index >= cutoff_index:
+            final_lines.append(line)
+            continue
+
+        # Otherwise skip short lines
+
+    # ⭐ Real newlines for debug file
+    #debug_output = "\n".join(final_lines)
+
+    #with open("character_test_clean_history.json", "w", encoding="utf-8") as f:
+    #    f.write(debug_output)
+
+    # ⭐ Literal \n characters for the model
+    cleaned_for_model = "\\n".join(final_lines)
+
+    return cleaned_for_model
+
+
+
 # ---------------------------------------------------------
 # Chat logic
 # ---------------------------------------------------------
 def send_message(user_input):
+    ##input("TEST")
+
     global history, character_name, persona, character_profile_changes
 
     parts = user_input.lower().strip().split()
@@ -236,7 +403,7 @@ def send_message(user_input):
             "caption": f"{character_name}'s {imagename} today."
         }
 
-    if len(parts) == 1 and parts[0] == "show":
+    if len(parts) == 1 and parts[0] == "show" and TEST_MODE_IMAGE != True:
         filename = generate_image(generate_image_prompt())
         history += f"{character_name}: [IMAGE:{filename}]\n"
         save_history()
@@ -246,22 +413,43 @@ def send_message(user_input):
             "caption": f"{character_name} sent."
         }
 
+    # ⭐ If reply mode is OFF → do not generate AI replies
+    if not reply_mode:
+        print("Reply mode OFF — skipping AI reply.")
+        history += f"User: {user_input}\n"
+        save_history()
+        return ""   # or return None or return {"reply": ""}
+
+
+    
     history += f"User: {user_input}\n{character_name}: "
-
-    cleaned_history = history  # simplified for now
-
-    prompt = persona + "\n" + cleaned_history
-
+    # Build cleaned history (strip short messages, remove image markers)
+    cleaned_history = clean_history_for_prompt(history)
+    print(character_profile_changes)
+    if character_profile_changes.strip():
+        prompt = (
+        persona
+        + "\nRecent Updates are:\n"
+        + character_profile_changes + "\n"
+        + cleaned_history
+        )
+        character_profile_changes = character_profile_changes.strip()
+    else:
+        prompt = persona + "\n" + cleaned_history
+    
     payload = {
-        "prompt": prompt,
-        "max_length": 200,
-        "temperature": 0.8,
-        "top_p": 0.9,
-        "stop_sequence": ["User:", f"{character_name}:"]
+    "prompt": prompt,
+    "max_length": 200,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "stop_sequence": ["User:", f"{character_name}:"]
     }
 
+    with open("prompt_payload.json", "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=4)
+
     if TEST_MODE:
-        reply = f"{character_name} nods thoughtfully."
+        reply = test_requests(payload)
     else:
         response = requests.post(SERVER_URL, json=payload)
         data = response.json()
@@ -271,6 +459,7 @@ def send_message(user_input):
     save_history()
 
     return reply
+
 
 # ---------------------------------------------------------
 # FastAPI app
@@ -389,22 +578,27 @@ def update_character(req: dict):
     if new_location != char_location:
         new_data["location"] = new_location
 
-
-# --- INVENTORY NORMALIZATION ---
+    # --- INVENTORY NORMALIZATION ---
     raw_inventory = req.get("inventory", inventory)
 
-    if raw_inventory != inventory:
-    # Normalize inventory
-        if isinstance(raw_inventory, str):
-        # Convert "Shears, Bucket" → ["Shears", "Bucket"]
-            new_inventory = [item.strip() for item in raw_inventory.split(",") if item.strip()]
-            new_data["inventory"] = new_inventory
-        else:
-            new_inventory = raw_inventory
-            new_data["inventory"] = new_inventory
+    # ⭐ Normalize raw_inventory FIRST
+    if isinstance(raw_inventory, str):
+    # Convert "" → []
+    # Convert "Bucket, Rope" → ["Bucket", "Rope"]
+        normalized_inventory = [
+            item.strip() for item in raw_inventory.split(",") if item.strip()
+        ]
     else:
-        new_inventory = inventory
+    # Already a list
+        normalized_inventory = raw_inventory
 
+    # ⭐ Now compare normalized inventory to previous inventory
+    if normalized_inventory != inventory:
+        # Inventory actually changed → record it
+        new_data["inventory"] = normalized_inventory
+    else:
+        # No change → do NOT include inventory in new_data
+        pass
 
     # --- DESCRIPTION NORMALIZATION ---
     raw_description = req.get("description", description)
@@ -453,7 +647,7 @@ def update_character(req: dict):
     mood = new_mood
     outfit = new_outfit
     char_location = new_location
-    inventory = new_inventory
+    inventory = raw_inventory
     description = new_description
     pose = new_pose
     age = new_age
@@ -474,6 +668,14 @@ def get_character():
 @app.get("/active_character")
 def active_character():
     return {"character": character_name}
+
+@app.post("/reply_mode")
+def set_reply_mode(data: dict):
+    global reply_mode
+    reply_mode = data.get("enabled", True)
+    print("Reply mode set to:", reply_mode)
+    return {"ok": True}
+
 
 @app.post("/direct_character_say")
 async def direct_character_say(data: dict):

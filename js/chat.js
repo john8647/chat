@@ -196,45 +196,92 @@ async function sendMessage() {
     if (!text) return;
 
     const firstLetter = characterName[0].toLowerCase();
-    console.log(text)
-    // ⭐ Direct speech command detection (split by colon)
+
+    // ⭐ Direct speech
     const colonParts = text.split(":");
     if (colonParts.length > 1 && colonParts[0].trim().toLowerCase() === firstLetter) {
 
-    const directText = colonParts.slice(1).join(":").trim();
+        const directText = colonParts.slice(1).join(":").trim();
 
-    // Send to backend to write JSON
-    await fetch("http://localhost:8000/direct_character_say", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            character: characterName,   // ⭐ FIXED
-            text: directText
-        })
-    });
+        await fetch("http://localhost:8000/direct_character_say", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                character: characterName,
+                text: directText
+            })
+        });
 
-    // Append locally
-    //appendBubble(characterName, directText);  // ⭐ WRONG
-    appendBubble(directText, "character"); // ⭐ Correct
-    input.value = "";
-    return;
-    
+        appendBubble(directText, "character");
+        input.value = "";
+        return;
     }
 
-    // ⭐ Image command detection (split by space)
+    // ⭐ Image command
     const spaceParts = text.split(" ");
     const isImageCommand =
         spaceParts[0].toLowerCase() === "image" &&
         spaceParts.length === 2;
 
-    // Only show user bubble if NOT an image command
-    if (!isImageCommand) {
+    if (isImageCommand) {
         appendBubble(text, "you");
+
+        const res = await fetch("/play", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+
+        const data = await res.json();
+
+        // ⭐ Always show image result even if replyMode = OFF
+        appendImageBubble(data.reply.filename, data.reply.caption);
+
+        input.value = "";
+        return;
     }
 
-    input.value = "";
-    input.focus();
+    // ⭐ Show command
+    if (text.toLowerCase() === "show" && IMAGE_GEN_SERVER_URL && IMAGE_GEN_SERVER_URL.length > 1) {
+        appendBubble(text, "you");
 
+        const res = await fetch("/play", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+
+        const data = await res.json();
+
+        appendImageBubble(data.reply.filename, data.reply.caption);
+
+        input.value = "";
+        return;
+    }
+
+    // ⭐ Normal user bubble
+    if (text.toLowerCase() != "show") 
+    {
+        appendBubble(text, "you");
+    }
+        
+    input.value = "";
+    
+    // ⭐ If reply mode OFF → stop here (commands already handled)
+    if (!replyMode) {
+        //console.log("Reply mode OFF — skipping AI reply.");
+        //console.log("In not reply mode1")
+        const res = await fetch("/play", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+        //console.log("In not reply mode")
+        const data = await res.json();
+        return;
+    }
+
+    // ⭐ AI reply
     showTyping();
 
     const res = await fetch("/play", {
@@ -253,8 +300,6 @@ async function sendMessage() {
         appendBubble(data.reply, "character");
     }
 }
-
-
 
 
 function formatTimestamp(date) {

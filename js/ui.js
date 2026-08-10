@@ -11,6 +11,7 @@ let age = ""
 let SERVER_URL = "";
 let IMAGE_GEN_SERVER_URL = "";
 let TEST_MODE = true;
+let replyMode = true;
 const modal = document.getElementById("global-options-modal");
 const btn = document.getElementById("global-options-btn");
 const closeBtn = document.getElementById("close-options");
@@ -46,6 +47,8 @@ function closeGlobalOptions() {
 }
 
 
+
+
 function normalizeUrl(url) {
     if (!url) return "";
     if (!url.includes(":443")) {
@@ -66,6 +69,12 @@ function evaluateTestMode() {
 document.getElementById("save-options-btn").onclick = async () => {
     const serverUrl = document.getElementById("server-url-input").value.trim();
     const imageUrl = document.getElementById("image-url-input").value.trim();
+
+    await fetch("http://localhost:8000/reply_mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: replyMode })
+    });
 
     // 1. Send server URL
     await fetch("http://localhost:8000/update_server_url", {
@@ -104,6 +113,12 @@ document.getElementById("save-options-btn").onclick = async () => {
 };
 
 
+document.getElementById("reply_mode").addEventListener("change", (e) => {
+    replyMode = e.target.checked;
+    console.log("Reply mode:", replyMode);
+});
+
+
 
 document.getElementById("server-url-input").addEventListener("change", (e) => {
     SERVER_URL = normalizeUrl(e.target.value);
@@ -132,7 +147,7 @@ fetch("http://localhost:8000/update_server_url", {
 
 
 
-fetch("http://localhost:8000/ping_server")
-    .then(r => r.json())
-    .then(data => console.log("Ping:", data));
+//fetch("http://localhost:8000/ping_server")
+//    .then(r => r.json())
+//   .then(data => console.log("Ping:", data));
 

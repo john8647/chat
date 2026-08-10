@@ -82,8 +82,8 @@
       },
       "lora_1": {
         "on": true,
-        "lora": "chloe_f1.safetensors",
-        "strength": 0.8
+        "lora": "chloe_f0.safetensors",
+        "strength": 0.7
       },
       "lora_2": {
         "on": true,
@@ -113,7 +113,7 @@
   "34": {
     "inputs": {
       "enabled": true,
-      "strength": 0.05,
+      "strength": 0.35,
       "debug": false,
       "model": [
         "28",
@@ -174,8 +174,8 @@
   },
   "72": {
     "inputs": {
-      "aspect_ratio": "1:1 (Square)",
-      "megapixels": 0.25,
+      "aspect_ratio": "2:3 (Portrait Photo)",
+      "megapixels": 0.50,
       "multiple": 8
     },
     "class_type": "ResolutionSelector",

@@ -26,7 +26,7 @@ app.post("/play", async (req, res) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: req.body.message })
     });
-
+    //console.log("TEST!")
     const data = await response.json();
     res.json({ reply: data.reply });
 });
