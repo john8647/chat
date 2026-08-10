@@ -440,8 +440,9 @@ def send_message(user_input):
     payload = {
     "prompt": prompt,
     "max_length": 200,
-    "temperature": 0.8,
-    "top_p": 0.9,
+    "max_length": 50,
+    "temperature": 0.6,
+    "top_p": 0.7,
     "stop_sequence": ["User:", f"{character_name}:"]
     }
 
@@ -486,9 +487,18 @@ class ServerUrlUpdate(BaseModel):
 @app.post("/update_server_url")
 def update_server_url(data: ServerUrlUpdate):
     global SERVER_URL
-    SERVER_URL = data.server_url.strip()
+
+    base = data.server_url.strip()
+
+    # Ensure correct KoboldAI Lite endpoint
+    if not base.endswith("/api/v1/generate"):
+        base = base.rstrip("/") + "/api/v1/generate"
+
+    SERVER_URL = base
+
     evaluate_test_mode()
     return {"ok": True}
+
 
 class ImageUrlUpdate(BaseModel):
     image_url: str

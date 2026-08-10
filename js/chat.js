@@ -225,7 +225,7 @@ async function sendMessage() {
 
     if (isImageCommand) {
         appendBubble(text, "you");
-
+        console.log("HERE! 0")
         const res = await fetch("/play", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -240,11 +240,11 @@ async function sendMessage() {
         input.value = "";
         return;
     }
-
+    console.log(text)
     // ⭐ Show command
-    if (text.toLowerCase() === "show" && IMAGE_GEN_SERVER_URL && IMAGE_GEN_SERVER_URL.length > 1) {
+    if (text.toLowerCase() === "show" && IMAGE_GEN_SERVER_URL.length > 1) {
         appendBubble(text, "you");
-
+        console.log("HERE!")
         const res = await fetch("/play", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
