@@ -310,6 +310,30 @@ body {
     cursor: pointer;
 }
 
+.chat-bubble.audio-bubble {
+    background: #f2f2f2;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    max-width: 70%;
+    min-width: 200px;
+    min-height: 80px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}
+
+.chat-bubble.audio-bubble audio {
+    width: 100%;
+    height: 40px;
+    outline: none;
+}
+
+
+
+
 /* Modal container */
 #image-modal {
     position: fixed;
@@ -342,4 +366,5 @@ body {
     border-radius: 10px;
     z-index: 2;                  /* ⭐ ABOVE BACKDROP */
 }
+
 

@@ -1,0 +1,199 @@
+{
+  "1": {
+    "inputs": {
+      "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "3": {
+    "inputs": {
+      "samples": [
+        "36",
+        0
+      ],
+      "vae": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "4": {
+    "inputs": {
+      "vae_name": "Wan2_1_VAE_bf16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "side view",
+      "clip": [
+        "28",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive Prompt"
+    }
+  },
+  "9": {
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "10": {
+    "inputs": {
+      "width": [
+        "72",
+        0
+      ],
+      "height": [
+        "72",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "28": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": true,
+        "lora": "chloe_f0.safetensors",
+        "strength": 0.7
+      },
+      "lora_2": {
+        "on": true,
+        "lora": "Krea2-realism-V1.safetensors",
+        "strength": 0.9
+      },
+      "lora_3": {
+        "on": false,
+        "lora": "michelle_krea_2_000003000.safetensors",
+        "strength": 0.95
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "Power Lora Loader (rgthree)"
+    }
+  },
+  "34": {
+    "inputs": {
+      "enabled": true,
+      "strength": 0.15,
+      "debug": false,
+      "model": [
+        "28",
+        0
+      ]
+    },
+    "class_type": "ComfyUI-Krea2T-Enhancer",
+    "_meta": {
+      "title": "ComfyUI-Krea2T-Enhancer"
+    }
+  },
+  "36": {
+    "inputs": {
+      "eta": 0.5,
+      "sampler_name": "exponential/ddim",
+      "scheduler": "beta57",
+      "steps": 8,
+      "steps_to_run": -1,
+      "denoise": 1,
+      "cfg": 1,
+      "seed": 746417514347276,
+      "sampler_mode": "standard",
+      "bongmath": false,
+      "model": [
+        "34",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "41",
+        0
+      ],
+      "latent_image": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "ClownsharKSampler_Beta",
+    "_meta": {
+      "title": "ClownsharKSampler"
+    }
+  },
+  "41": {
+    "inputs": {
+      "text": "blurry, low-resolution, grainy, pixelated, distorted, compression artifacts, watermark, extra limbs",
+      "clip": [
+        "28",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative Prompt"
+    }
+  },
+  "72": {
+    "inputs": {
+      "9:16 (Portrait Widescreen)",
+      "megapixels": 2,
+      "multiple": 8
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "Resolution"
+    }
+  },
+  "78": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}

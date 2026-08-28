@@ -44,6 +44,44 @@ function appendImageBubble(filename, caption) {
     chat.scrollTop = chat.scrollHeight;
 }
 
+function appendAudioBubble(filename, caption) {
+    console.log("Append audio bubble called!")
+    const row = document.createElement("div");
+    row.className = "message-row message-left";
+
+    const avatar = document.createElement("img");
+    avatar.className = "avatar-chat";
+    avatar.src = "http://localhost:8000/images/" + characterName + ".png";
+
+    const bubble = document.createElement("div");
+    bubble.className = "chat-bubble audio-bubble";
+
+    // Create audio player
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    audio.preload = "none";
+
+    const source = document.createElement("source");
+    source.src = "http://localhost:8000/images/Audio/" + filename;
+    source.type = "audio/flac";
+
+    audio.appendChild(source);
+
+    // Optional caption (same style as images)
+    const cap = document.createElement("div");
+    cap.className = "audio-caption";
+    cap.textContent = caption;
+
+    bubble.appendChild(audio);
+    bubble.appendChild(cap);
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+
+    chat.appendChild(row);
+    chat.scrollTop = chat.scrollHeight;
+}
+
 
 
 function appendBubble(text, who) {
@@ -54,6 +92,15 @@ function appendBubble(text, who) {
         if (match) {
             const filename = match[1];
             appendImageBubble(filename, `${characterName} sent.`);
+            return; // ⭐ Stop normal bubble rendering
+        }
+    }
+
+    if (text.includes("[AUDIO:")) {
+        const match = text.match(/\[AUDIO:(.+?)\]/);
+        if (match) {
+            const filename = match[1];
+            appendAudioBubble(filename, `${characterName} said.`);
             return; // ⭐ Stop normal bubble rendering
         }
     }
@@ -111,6 +158,7 @@ function showTyping() {
 }
 
 function appendBubble(text, who) {
+    
     const row = document.createElement("div");
     row.className = "message-row " + (who === "you" ? "message-right" : "message-left");
 
@@ -219,13 +267,13 @@ async function sendMessage() {
 
     // ⭐ Image command
     const spaceParts = text.split(" ");
-    const isImageCommand =
+    const isImageCommand = 
         spaceParts[0].toLowerCase() === "image" &&
         spaceParts.length === 2;
 
     if (isImageCommand) {
         appendBubble(text, "you");
-        console.log("HERE! 0")
+        //console.log("HERE! 0")
         const res = await fetch("/play", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -240,11 +288,34 @@ async function sendMessage() {
         input.value = "";
         return;
     }
-    console.log(text)
+    //console.log(text)
     // ⭐ Show command
     if (text.toLowerCase() === "show" && IMAGE_GEN_SERVER_URL.length > 1) {
-        appendBubble(text, "you");
-        console.log("HERE!")
+        //appendBubble(text, "you");
+        //console.log("HERE!")
+        const res = await fetch("/play", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+        input.value = "";
+        const data = await res.json();
+
+        appendImageBubble(data.reply.filename, data.reply.caption);
+
+        
+        return;
+    }
+
+    // ⭐ Voice command
+    //spaceParts = text.split(" ");
+    const isVoiceCommand =
+        spaceParts[0].toLowerCase() === "audio" &&
+        spaceParts.length === 2;
+
+    if (isVoiceCommand) {
+        //appendBubble(text, "you");
+        console.log("HERE! 8")
         const res = await fetch("/play", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -253,12 +324,47 @@ async function sendMessage() {
 
         const data = await res.json();
 
-        appendImageBubble(data.reply.filename, data.reply.caption);
+        // ⭐ Always show audio result even if replyMode = OFF
+        appendAudioBubble(data.reply.filename, data.reply.caption);
 
         input.value = "";
         return;
     }
 
+      if (text.toLowerCase() === "say") {
+        //appendBubble(text, "you");
+        console.log("HERE! 9")
+        const res = await fetch("/play", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+
+        const data = await res.json();
+
+        // ⭐ Always show audio result even if replyMode = OFF
+        appendAudioBubble(data.reply.filename, data.reply.caption);
+
+        input.value = "";
+        return;
+    }
+    if (text.toLowerCase() === "said") {
+        
+        console.log("HERE! 10")
+        const res = await fetch("/play", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+
+        const data = await res.json();
+
+        // ⭐ Always show audio result even if replyMode = OFF
+        appendAudioBubble(data.reply.filename, data.reply.caption);
+        
+        input.value = "";
+        return;
+    }
     // ⭐ Normal user bubble
     if (text.toLowerCase() != "show") 
     {
@@ -270,7 +376,7 @@ async function sendMessage() {
     // ⭐ If reply mode OFF → stop here (commands already handled)
     if (!replyMode) {
         //console.log("Reply mode OFF — skipping AI reply.");
-        //console.log("In not reply mode1")
+        console.log("In not reply mode1")
         const res = await fetch("/play", {
             method: "POST",
             headers: { "Content-Type": "application/json" },

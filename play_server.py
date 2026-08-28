@@ -20,12 +20,15 @@ TEST_MODE_IMAGE = True
 SERVER_URL = ""
 IMAGE_GEN_SERVER_URL = ""
 
+
 def evaluate_test_mode():
     global TEST_MODE, TEST_MODE_IMAGE, SERVER_URL, IMAGE_GEN_SERVER_URL
     TEST_MODE = not SERVER_URL or not SERVER_URL.strip()
     TEST_MODE_IMAGE = not IMAGE_GEN_SERVER_URL or not IMAGE_GEN_SERVER_URL.strip()
     print("TEST_MODE =", TEST_MODE)
+
     print("TEST_MODE_IMAGE =", TEST_MODE_IMAGE)
+
 
 # ---------------------------------------------------------
 # Character globals
@@ -33,18 +36,21 @@ def evaluate_test_mode():
 character_name = "undefined"
 character_profile_changes = ""
 
-##lora = {
-    ##"Jimmy": "jimmy_f1",
-    ##"Sarah": "sarah_f1",
-    ##"Chloe": "chloe_f1"
-##}
+# lora = {
+# "Jimmy": "jimmy_f1",
+# "Sarah": "sarah_f1",
+# "Chloe": "chloe_f1"
+# }
 
 lora = {
-    "Jimmy": "jimmy_f1",
-    "Sarah": "sarah_f1",
-    "Chloe": "chloe_f0"
+    "Leah": "rosie_b",
+    "Chloe": "chloe_f1"
 }
-##character
+voices = {
+    "Leah": "voice - best one UK version 10-Leah.mp3",
+    "Chloe": "voice - best one UK version 3-Chloe.mp3"
+}
+# character
 persona = ""
 mood = ""
 outfit = ""
@@ -67,12 +73,126 @@ def normalize_queue_item(item):
         return item
     return None
 
+
 def comfyui_alive():
     try:
         r = requests.get(f"{IMAGE_GEN_SERVER_URL}/system_stats", timeout=5)
         return r.status_code == 200
     except Exception:
         return False
+
+
+def generate_audio(dialog_script, user):
+    global character_name, voices
+    if not comfyui_alive():
+        print(
+            f"ComfyUI server is NOT alive or unreachable.  Was about to say {dialog_script} as {user}")
+        return None
+    workflow_path = "resources/comfyui_api/audio_workflow.json"
+    with open(workflow_path, "r") as f:
+        workflow = json.load(f)
+        # 1. User speaking → use user's own voice
+    if user == "User":
+        workflow["3"]["inputs"]["audio"] = "voice - my own voice.mp3"
+    else:
+        # 2. Character speaking → look up voice
+        voice_file = voices.get(character_name)
+
+        if voice_file:
+            # Known character → use mapped voice
+            workflow["3"]["inputs"]["audio"] = voice_file
+        else:
+            # Unknown character → disable voice or use fallback
+            workflow["3"]["inputs"]["audio"] = "a-male-voice-br-go.mp3"
+    workflow["2"]["inputs"]["text"] = dialog_script
+
+    resp = requests.post(f"{IMAGE_GEN_SERVER_URL}/prompt",
+                         json={"prompt": workflow})
+    print("RAW AUDIO RESPONSE:", resp.text)
+
+    data = resp.json()
+    prompt_id = data["prompt_id"]
+
+    result = None
+    initialwait = True
+    start_time = time.time()
+    MAX_WAIT = 300
+
+    while True:
+        if time.time() - start_time > MAX_WAIT:
+            print("ERROR: Audio generation timed out.")
+            return None
+
+        if initialwait:
+            time.sleep(20)
+            initialwait = False
+            continue
+
+        queue = requests.get(f"{IMAGE_GEN_SERVER_URL}/queue").json()
+        all_items = (
+            queue.get("queue_pending", []) +
+            queue.get("queue_running", []) +
+            queue.get("queue_done", [])
+        )
+
+        if not all_items:
+            history_data = requests.get(
+                f"{IMAGE_GEN_SERVER_URL}/history/{prompt_id}").json()
+            result = history_data
+            break
+
+        for raw_item in all_items:
+            item = normalize_queue_item(raw_item)
+            if not item:
+                continue
+            if item.get("prompt_id") == prompt_id:
+                status = item.get("status")
+                if status in ("completed", "success", "done") or "outputs" in item:
+                    result = item
+                    break
+
+        if result is not None:
+            break
+
+        time.sleep(1)
+
+     # ... after you’ve set result ...
+
+    # Audio workflow returns outputs directly
+    outputs = result.get("outputs", {})
+
+    node13 = outputs.get("13")
+    if not node13:
+        print("ERROR: Audio output node 13 not found")
+        print(json.dumps(result, indent=4))
+        return None
+
+    audio_list = node13.get("audio")
+    if not audio_list:
+        print("ERROR: No audio list found in node 13")
+        print(json.dumps(node13, indent=4))
+        return None
+
+    audio_info = audio_list[0]
+    audio_filename = audio_info["filename"]
+    subfolder = audio_info.get("subfolder", "")
+
+    print("Audio file:", audio_filename, "subfolder:", subfolder)
+
+    # Use subfolder when fetching the file
+    audio_data = requests.get(
+        f"{IMAGE_GEN_SERVER_URL}/view?filename={audio_filename}&subfolder={subfolder}&type=output"
+    ).content
+
+    AUDIO_OUTPUT_DIR = "G:/images/audio"
+    os.makedirs(AUDIO_OUTPUT_DIR, exist_ok=True)
+    save_path = os.path.join(AUDIO_OUTPUT_DIR, audio_filename)
+
+    with open(save_path, "wb") as f:
+        f.write(audio_data)
+
+    return audio_filename
+
 
 def generate_image(prompt):
     global character_name
@@ -86,12 +206,21 @@ def generate_image(prompt):
 
     workflow["6"]["inputs"]["text"] = prompt
     random_prefix = str(uuid.uuid4())
-    workflow["78"]["inputs"]["filename_prefix"] = random_prefix
+    workflow["77"]["inputs"]["filename_prefix"] = random_prefix
 
-    workflow["28"]["inputs"]["lora_1"]["on"] = "true" if character_name == "Chloe" else "false"
+    if character_name in lora:
+        workflow["28"]["inputs"]["lora_1"]["on"] = "true"
+        workflow["28"]["inputs"]["lora_1"]["lora"] = lora[character_name]
+    else:
+        # Unknown character → disable LoRA
+        workflow["28"]["inputs"]["lora_1"]["on"] = "false"
+        workflow["28"]["inputs"]["lora_1"]["lora"] = ""   # or leave unchanged
 
-    resp = requests.post(f"{IMAGE_GEN_SERVER_URL}/prompt", json={"prompt": workflow})
+    resp = requests.post(f"{IMAGE_GEN_SERVER_URL}/prompt",
+                         json={"prompt": workflow})
     data = resp.json()
+    print("RAW IMAGE RESPONSE:", resp.text)
+
     prompt_id = data["prompt_id"]
 
     result = None
@@ -117,7 +246,8 @@ def generate_image(prompt):
         )
 
         if not all_items:
-            history_data = requests.get(f"{IMAGE_GEN_SERVER_URL}/history/{prompt_id}").json()
+            history_data = requests.get(
+                f"{IMAGE_GEN_SERVER_URL}/history/{prompt_id}").json()
             result = history_data
             break
 
@@ -137,10 +267,11 @@ def generate_image(prompt):
         time.sleep(1)
 
     prompt_result = result[prompt_id]
-    output_node = prompt_result["outputs"]["78"]
+    output_node = prompt_result["outputs"]["77"]
     filename = output_node["images"][0]["filename"]
 
-    img_data = requests.get(f"{IMAGE_GEN_SERVER_URL}/view?filename={filename}").content
+    img_data = requests.get(
+        f"{IMAGE_GEN_SERVER_URL}/view?filename={filename}").content
 
     IMAGE_OUTPUT_DIR = "G:/images"
     os.makedirs(IMAGE_OUTPUT_DIR, exist_ok=True)
@@ -151,21 +282,26 @@ def generate_image(prompt):
 
     return filename
 
+
 def generate_image_prompt():
     global character_name, outfit, char_location, description, age, pose, mood, inventory
 
-    # use Lookup LoRA name
-    lora_name = lora.get(character_name, "default_lora")
+    lora_name = lora.get(character_name, "")
+    use_lora = bool(lora_name)
 
-    # Build the prompt
+    if use_lora:
+        subject_line = f"A real photo of {lora_name} {description}, age {age}."
+    else:
+        subject_line = f"A real photo of {description}, age {age}."
+
     image_prompt = (
-        "Photorealistic portrait.\n"
-        f"LoRA: {lora_name}.\n"
-        f"A real photo of {description}, age {age}.\n"
+        "Photorealistic.\n"
+        f"{subject_line}\n"
         f"{pose}, looking {mood}.\n"
         f"Wearing {outfit}. "
         f"{build_holding_text(inventory)}\n"
         f"Scene: {char_location}."
+        f"Image Details: high quality, raw, detailed skin texture with visible pores."
     )
 
     return image_prompt
@@ -218,6 +354,7 @@ def load_character_data():
         pose = ""
         age = ""
 
+
 def save_character_data(new_data):
     global character_profile_changes, persona, mood, outfit, char_location, inventory, character_name, description, pose, age, emptyhanded
     # Build update block FIRST
@@ -231,13 +368,14 @@ def save_character_data(new_data):
     if "location" in new_data:
         changes.append(f"Location updated is now: {new_data['location']}")
     if "inventory" in new_data:
-        if(len(new_data['inventory']) > 0):
-            if(emptyhanded == True):
+        if (len(new_data['inventory']) > 0):
+            if (emptyhanded == True):
                 emptyhanded = False
-                changes.append(f"Inventory updated now is: {new_data['inventory']}")
+                changes.append(
+                    f"Inventory updated now is: {new_data['inventory']}")
         else:
-            if(emptyhanded == False):
-                changes.append(f"{character_name} has nothing in their hands.")    
+            if (emptyhanded == False):
+                changes.append(f"{character_name} has nothing in their hands.")
                 emptyhanded = True
     if "pose" in new_data:
         changes.append(f"new pose is: {new_data['pose']}")
@@ -257,7 +395,7 @@ def save_character_data(new_data):
     }
 
     filename = f"{character_name}.json"
-    
+
     try:
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
@@ -268,12 +406,16 @@ def save_character_data(new_data):
 # ---------------------------------------------------------
 # History
 # ---------------------------------------------------------
+
+
 def history_filename():
     return f"{character_name}_history.json"
+
 
 def save_history():
     with open(history_filename(), "w", encoding="utf-8") as f:
         json.dump({"history": history}, f, indent=2)
+
 
 def load_history():
     global history
@@ -287,6 +429,7 @@ def load_history():
             print("Error loading history:", e)
     else:
         history = "Conversation history:\n"
+
 
 load_character_data()
 load_history()
@@ -330,11 +473,23 @@ def clean_history_for_prompt(history: str) -> str:
         lower = content.lower().strip()
 
         # Remove image markers
-        if content.startswith("[IMAGE:"):
+        if content.startswith("[IMAGE"):
+            continue
+
+        # Remove audio markers
+        if content.startswith("[AUDIO"):
+            continue
+
+        if lower.startswith("say "):
+            continue
+        if lower.startswith("said "):
             continue
 
         # Remove commands
         if lower == "show":
+            continue
+        # Remove commands
+        if lower.startswith("audio "):
             continue
         if lower.startswith("image "):
             continue
@@ -370,9 +525,9 @@ def clean_history_for_prompt(history: str) -> str:
         # Otherwise skip short lines
 
     # ⭐ Real newlines for debug file
-    #debug_output = "\n".join(final_lines)
+    # debug_output = "\n".join(final_lines)
 
-    #with open("character_test_clean_history.json", "w", encoding="utf-8") as f:
+    # with open("character_test_clean_history.json", "w", encoding="utf-8") as f:
     #    f.write(debug_output)
 
     # ⭐ Literal \n characters for the model
@@ -381,12 +536,10 @@ def clean_history_for_prompt(history: str) -> str:
     return cleaned_for_model
 
 
-
 # ---------------------------------------------------------
 # Chat logic
 # ---------------------------------------------------------
 def send_message(user_input):
-    ##input("TEST")
 
     global history, character_name, persona, character_profile_changes
 
@@ -403,6 +556,19 @@ def send_message(user_input):
             "caption": f"{character_name}'s {imagename} today."
         }
 
+    if len(parts) == 2 and parts[0] == "audio":
+        audioname = parts[1].strip()
+        filename = f"{audioname}.flac"
+
+        # Add to history (consistent with IMAGE format)
+        history += f"{character_name}: [AUDIO:{filename}]\n"
+        save_history()
+        return {
+            "type": "audio",
+            "filename": filename,
+            "caption": f"{character_name} said."
+        }
+
     if len(parts) == 1 and parts[0] == "show" and TEST_MODE_IMAGE != True:
         filename = generate_image(generate_image_prompt())
         history += f"{character_name}: [IMAGE:{filename}]\n"
@@ -413,6 +579,41 @@ def send_message(user_input):
             "caption": f"{character_name} sent."
         }
 
+    parts = user_input.split(" ", 1)
+    lower = user_input.lower()
+
+    # SAY command (character speaks)
+    if lower.startswith("say ") and len(parts) == 2:
+        dialog_script = parts[1].strip()
+
+        filename = generate_audio(dialog_script, character_name)
+
+    # Add marker to history
+        history += f"{character_name}: [AUDIO {filename}]\n"
+        save_history()
+
+        return {
+            "type": "audio",
+            "filename": filename,
+            "caption": ""
+        }
+
+    # SAID command (user speaks)
+    if lower.startswith("said ") and len(parts) == 2:
+        dialog_script = parts[1].strip()
+
+        filename = generate_audio(dialog_script, "User")
+
+        # Add marker to history
+        history += f"User: [AUDIO {filename}]\n"
+        save_history()
+
+        return {
+            "type": "audio",
+            "filename": filename,
+            "caption": ""
+        }
+
     # ⭐ If reply mode is OFF → do not generate AI replies
     if not reply_mode:
         print("Reply mode OFF — skipping AI reply.")
@@ -420,30 +621,28 @@ def send_message(user_input):
         save_history()
         return ""   # or return None or return {"reply": ""}
 
-
-    
     history += f"User: {user_input}\n{character_name}: "
     # Build cleaned history (strip short messages, remove image markers)
     cleaned_history = clean_history_for_prompt(history)
     print(character_profile_changes)
     if character_profile_changes.strip():
         prompt = (
-        persona
-        + "\nRecent Updates are:\n"
-        + character_profile_changes + "\n"
-        + cleaned_history
+            persona
+            + "\nRecent Updates are:\n"
+            + character_profile_changes + "\n"
+            + cleaned_history
         )
         character_profile_changes = character_profile_changes.strip()
     else:
         prompt = persona + "\n" + cleaned_history
-    
+
     payload = {
-    "prompt": prompt,
-    "max_length": 200,
-    "max_length": 50,
-    "temperature": 0.6,
-    "top_p": 0.7,
-    "stop_sequence": ["User:", f"{character_name}:"]
+        "prompt": prompt,
+        "max_length": 200,
+        "max_length": 50,
+        "temperature": 0.6,
+        "top_p": 0.7,
+        "stop_sequence": ["User:", f"{character_name}:"]
     }
 
     with open("prompt_payload.json", "w", encoding="utf-8") as f:
@@ -481,27 +680,43 @@ app.mount("/images", StaticFiles(directory="G:/images"), name="images")
 # ---------------------------------------------------------
 # Routes
 # ---------------------------------------------------------
+
+
 class ServerUrlUpdate(BaseModel):
     server_url: str
+
 
 @app.post("/update_server_url")
 def update_server_url(data: ServerUrlUpdate):
     global SERVER_URL
 
-    base = data.server_url.strip()
+    raw = data.server_url.strip()
 
-    # Ensure correct KoboldAI Lite endpoint
-    if not base.endswith("/api/v1/generate"):
-        base = base.rstrip("/") + "/api/v1/generate"
+    # If nothing entered → stay in test mode
+    if not raw:
+        SERVER_URL = ""
+        evaluate_test_mode()
+        return {"ok": True, "msg": "No URL provided. Test mode remains active."}
 
-    SERVER_URL = base
+    # Must start with http or https
+    if not raw.startswith("http://") and not raw.startswith("https://"):
+        SERVER_URL = ""
+        evaluate_test_mode()
+        return {"ok": False, "msg": "Invalid URL. Must start with http:// or https://"}
+
+    # Append KoboldAI Lite endpoint if missing
+    if not raw.endswith("/api/v1/generate"):
+        raw = raw.rstrip("/") + "/api/v1/generate"
+
+    SERVER_URL = raw
 
     evaluate_test_mode()
-    return {"ok": True}
+    return {"ok": True, "server_url": SERVER_URL}
 
 
 class ImageUrlUpdate(BaseModel):
     image_url: str
+
 
 @app.post("/update_image_url")
 def update_image_url(data: ImageUrlUpdate):
@@ -509,6 +724,7 @@ def update_image_url(data: ImageUrlUpdate):
     IMAGE_GEN_SERVER_URL = data.image_url.strip()
     evaluate_test_mode()
     return {"ok": True}
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -530,20 +746,21 @@ def ping_server():
         return {"ok": False, "error": str(e)}
 
 
-
 @app.post("/chat")
 def chat(req: ChatRequest):
     reply = send_message(req.message)
     return {"reply": reply}
 
+
 @app.get("/history")
 def get_history():
     return {"history": history}
 
+
 @app.post("/character/select")
 def select_character(req: dict):
     global character_name, history, mood, outfit, char_location, inventory, description, pose, age
-    
+
     new_name = req.get("name")
     if not new_name:
         return {"error": "No character name provided"}
@@ -565,6 +782,7 @@ def select_character(req: dict):
         "pose": pose,
         "age": age
     }
+
 
 @app.post("/character/update")
 def update_character(req: dict):
@@ -593,13 +811,13 @@ def update_character(req: dict):
 
     # ⭐ Normalize raw_inventory FIRST
     if isinstance(raw_inventory, str):
-    # Convert "" → []
-    # Convert "Bucket, Rope" → ["Bucket", "Rope"]
+        # Convert "" → []
+        # Convert "Bucket, Rope" → ["Bucket", "Rope"]
         normalized_inventory = [
             item.strip() for item in raw_inventory.split(",") if item.strip()
         ]
     else:
-    # Already a list
+        # Already a list
         normalized_inventory = raw_inventory
 
     # ⭐ Now compare normalized inventory to previous inventory
@@ -616,14 +834,14 @@ def update_character(req: dict):
     if raw_description != description:
         # Normalize description
         if isinstance(raw_description, list):
-        # Convert ["a young man a farmer"] → "a young man a farmer"
+            # Convert ["a young man a farmer"] → "a young man a farmer"
             new_description = " ".join(raw_description)
             new_data["description"] = new_description
         else:
             new_description = raw_description
             new_data["description"] = new_description
     else:
-    # No change → keep existing
+        # No change → keep existing
         new_description = description
 
     # --- POSE ---
@@ -638,7 +856,6 @@ def update_character(req: dict):
             new_data["pose"] = new_pose
     else:
         new_pose = pose
-
 
     # --- AGE ---
     raw_age = req.get("age", age)
@@ -667,17 +884,21 @@ def update_character(req: dict):
 
     return {"status": "ok"}
 
+
 @app.get("/favicon.ico")
 def favicon():
     return {}
+
 
 @app.get("/character")
 def get_character():
     return {"name": character_name}
 
+
 @app.get("/active_character")
 def active_character():
     return {"character": character_name}
+
 
 @app.post("/reply_mode")
 def set_reply_mode(data: dict):
@@ -712,6 +933,7 @@ async def direct_character_say(data: dict):
 @app.get("/")
 def root():
     return {"status": "Python game server running"}
+
 
 # ---------------------------------------------------------
 # Run server LAST

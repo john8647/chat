@@ -36,7 +36,7 @@
   },
   "6": {
     "inputs": {
-      "text": "side view",
+      "text": "chloe_f1, 13yo, young girl blonde hair side pony tail, standing in living room wearing Maroon printed woven fit and flare short dress, has a round neck, short sleeves, button closure, an attached lining, and flared hem\nbare feet, raw, photo realistic, detailed skin texture and inperfections with visibles pores, casual amateur snapshot.  ",
       "clip": [
         "28",
         1
@@ -82,8 +82,8 @@
       },
       "lora_1": {
         "on": true,
-        "lora": "chloe_f0.safetensors",
-        "strength": 0.7
+        "lora": "chloe_f1.safetensors",
+        "strength": 0.8
       },
       "lora_2": {
         "on": true,
@@ -113,7 +113,7 @@
   "34": {
     "inputs": {
       "enabled": true,
-      "strength": 0.35,
+      "strength": 0.25,
       "debug": false,
       "model": [
         "28",
@@ -134,7 +134,7 @@
       "steps_to_run": -1,
       "denoise": 1,
       "cfg": 1,
-      "seed": 746417514347276,
+      "seed": 197289628394817,
       "sampler_mode": "standard",
       "bongmath": false,
       "model": [
@@ -174,8 +174,8 @@
   },
   "72": {
     "inputs": {
-      "aspect_ratio": "2:3 (Portrait Photo)",
-      "megapixels": 0.50,
+      "aspect_ratio": "9:16 (Portrait Widescreen)",
+      "megapixels": 2,
       "multiple": 8
     },
     "class_type": "ResolutionSelector",
@@ -183,7 +183,7 @@
       "title": "Resolution"
     }
   },
-  "78": {
+  "77": {
     "inputs": {
       "filename_prefix": "ComfyUI",
       "images": [

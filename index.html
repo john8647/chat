@@ -1,117 +1,141 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Game</title>
-    <link rel="stylesheet" href="/resources/styles.css">
-</head>
-<body>
-
-<div class="app">
-    <!-- Sidebar -->
-    <div class="sidebar">
+    <link rel="stylesheet" href="/resources/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <!-- Sidebar -->
+      <div class="sidebar">
         <div class="sidebar-header">
-            <h2>Chat Game</h2>
-            <button id="global-options-btn" onclick="openGlobalOptions()">⋮</button>
-            </div>
-        <div class="character-list">
-           <div class="character-item active" data-name="Jimmy" onclick="selectCharacter('Jimmy', this)">
-                <div class="avatar" style="background-image:url('http://localhost:8000/images/jimmy.png'); background-size:cover;"></div>
-                <div class="character-name">Jimmy</div>
-            </div>
-            <div class="character-item" data-name="Sarah" onclick="selectCharacter('Sarah', this)">
-                <div class="avatar" style="background-image:url('http://localhost:8000/images/sarah.png'); background-size:cover;"></div>
-                <div class="character-name">Sarah</div>
-            </div>
-            <div class="character-item" data-name="Chloe" onclick="selectCharacter('Chloe', this)">
-                <div class="avatar" style="background-image:url('http://localhost:8000/images/chloe.png'); background-size:cover;"></div>
-                <div class="character-name">Chloe</div>
-            </div>
+          <h2>Chat Game</h2>
+          <button id="global-options-btn" onclick="openGlobalOptions()">
+            ⋮
+          </button>
         </div>
-    </div>
+        <div class="character-list">
+          <div
+            class="character-item active"
+            data-name="Jimmy"
+            onclick="selectCharacter('Jimmy', this)"
+          >
+            <div
+              class="avatar"
+              style="
+                background-image: url(&quot;http://localhost:8000/images/jimmy.png&quot;);
+                background-size: cover;
+              "
+            ></div>
+            <div class="character-name">Jimmy</div>
+          </div>
+          <div
+            class="character-item"
+            data-name="Leah"
+            onclick="selectCharacter('Leah', this)"
+          >
+            <div
+              class="avatar"
+              style="
+                background-image: url(&quot;http://localhost:8000/images/Leah.png&quot;);
+                background-size: cover;
+              "
+            ></div>
+            <div class="character-name">Leah</div>
+          </div>
+          <div
+            class="character-item"
+            data-name="Chloe"
+            onclick="selectCharacter('Chloe', this)"
+          >
+            <div
+              class="avatar"
+              style="
+                background-image: url(&quot;http://localhost:8000/images/chloe.png&quot;);
+                background-size: cover;
+              "
+            ></div>
+            <div class="character-name">Chloe</div>
+          </div>
+        </div>
+      </div>
 
-    <!-- Chat area -->
-    <div class="chat-area">
+      <!-- Chat area -->
+      <div class="chat-area">
         <div class="chat-header">
-            <div class="chat-header-avatar" id="chatHeaderAvatar"></div>
-            <div class="chat-header-info">
+          <div class="chat-header-avatar" id="chatHeaderAvatar"></div>
+          <div class="chat-header-info">
             <div class="chat-header-name" id="chatHeaderName">Jimmy</div>
             <div class="chat-header-status" id="chatHeaderStatus">Online</div>
+          </div>
+
+          <div class="chat-header-profile-toggle">
+            <button id="profileBtn" onclick="openProfile()">Profile</button>
+          </div>
+          <!-- Profile Panel -->
+          <div id="profilePanel" class="profile-panel">
+            <h3 id="profileName"></h3>
+
+            <label>Character:</label>
+            <textarea id="profilePersona"></textarea>
+
+            <label>Mood:</label>
+            <input id="profileMood" />
+
+            <label>Clothes:</label>
+            <input id="profileOutfit" />
+
+            <label>Location:</label>
+            <input id="profileLocation" />
+
+            <label>Items: (comma separated)</label>
+            <input id="profileInventory" />
+
+            <label>Personal description</label>
+            <input id="profileDescription" />
+
+            <label>Pose</label>
+            <input id="profilePose" />
+
+            <label>Age</label>
+            <input id="profileAge" />
+
+            <button onclick="saveProfile()">Save</button>
+            <button onclick="closeProfile()">Close</button>
+          </div>
         </div>
-            
-             <div class="chat-header-profile-toggle">
-        <button id="profileBtn" onclick="openProfile()">Profile</button>
-    </div>
-        <!-- Profile Panel -->
-<div id="profilePanel" class="profile-panel">
-    <h3 id="profileName"></h3>
-
-    <label>Character:</label>
-    <textarea id="profilePersona"></textarea>
-
-    <label>Mood:</label>
-    <input id="profileMood">
-
-    <label>Clothes:</label>
-    <input id="profileOutfit">
-
-    <label>Location:</label>
-    <input id="profileLocation">
-
-    <label>Items: (comma separated)</label>
-    <input id="profileInventory">
-
-    <label>Personal description</label>
-    <input id="profileDescription">
-
-    <label>Pose</label>
-    <input id="profilePose">
-
-    <label>Age</label>
-    <input id="profileAge">
-
-    <button onclick="saveProfile()">Save</button>
-    <button onclick="closeProfile()">Close</button>
-</div>
-</div>
-
 
         <div class="chat-window" id="chat"></div>
         <div class="input-area">
-            <input id="input" placeholder="Type a message" />
-            <button class="send-btn" onclick="sendMessage()">Send</button>
+          <input id="input" placeholder="Type a message" />
+          <button class="send-btn" onclick="sendMessage()">Send</button>
         </div>
+      </div>
     </div>
 
+    <div id="global-options-modal" class="hidden">
+      <h3>Global Options</h3>
+      <label>Server URL</label>
+      <input id="server-url-input" type="text" placeholder="Cloudflare URL" />
+      <label>Image Gen Server URL</label>
+      <input id="image-url-input" type="text" placeholder="Cloudflare URL" />
+      <input type="checkbox" id="reply_mode" checked />
+      <label for="reply_mode">Responses are On?</label>
+      <button id="save-options-btn">Save</button>
+      <button id="close-options" onclick="closeGlobalOptions()">Close</button>
+    </div>
 
+    <div id="image-modal" class="hidden">
+      <div id="image-modal-backdrop"></div>
+      <img id="image-modal-img" />
+    </div>
 
-</div>
-
-
-
-<div id="global-options-modal" class="hidden">
-    <h3>Global Options</h3>
-    <label>Server URL</label>
-    <input id="server-url-input" type="text" placeholder="Cloudflare URL">
-    <label>Image Gen Server URL</label>
-    <input id="image-url-input" type="text" placeholder="Cloudflare URL">
-    <input type="checkbox" id="reply_mode" checked>
-    <label for="reply_mode">Responses are On?</label> 
-    <button id="save-options-btn">Save</button>
-    <button id="close-options" onclick="closeGlobalOptions()">Close</button>
-</div>
-
-<div id="image-modal" class="hidden">
-    <div id="image-modal-backdrop"></div>
-    <img id="image-modal-img">
-</div>
-
-
-<!-- Modular JavaScript -->
-<script src="/js/ui.js"></script>
-<script src="/js/characters.js"></script>
-<script src="/js/history.js"></script>
-<script src="/js/chat.js"></script>
-<script src="/js/profile.js"></script>
-</body>
+    <!-- Modular JavaScript -->
+    <script src="/js/ui.js"></script>
+    <script src="/js/characters.js"></script>
+    <script src="/js/history.js"></script>
+    <script src="/js/chat.js"></script>
+    <script src="/js/profile.js"></script>
+  </body>
 </html>

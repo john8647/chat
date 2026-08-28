@@ -28,6 +28,16 @@ async function fetchHistory() {
             continue;
         }
 
+        // CHARACTER AUDIO MESSAGES
+        if (line.includes("[AUDIO:")) {
+            const match = line.match(/\[AUDIO:(.+?)\]/);
+            if (match) {
+                const filename = match[1];
+                appendAudioBubble(filename, `${characterName}'s image`);
+            }
+            continue;
+        }
+
         // CHARACTER TEXT MESSAGES
         if (line.startsWith(characterName + ":")) {
             appendBubble(line.replace(characterName + ":", "").trim(), "character");

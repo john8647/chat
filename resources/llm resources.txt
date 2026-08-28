@@ -5,4 +5,5 @@ LLaMA2-13B-Tiefighter.
 https://huggingface.co/KoboldAI/LLaMA2-13B-Tiefighter-GGUF/resolve/main/LLaMA2-13B-Tiefighter.Q4_K_S.gguf
 
 fisher yates shuffle
+https://huggingface.co/bartowski/KoboldAI_LLaMA2-13B-Tiefighter-GGUF/resolve/main/KoboldAI_LLaMA2-13B-Tiefighter-Q5_K_L.gguf 
  

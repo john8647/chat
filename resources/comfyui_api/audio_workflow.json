@@ -1,0 +1,45 @@
+{
+  "2": {
+    "inputs": {
+      "text": "try to support me, I'm going to turn up-side-down and put my feet in the air.",
+      "temperature": 1.05,
+      "top_k": 1000,
+      "top_p": 0.95,
+      "repetition_penalty": 1.2,
+      "seed": 42,
+      "use_cpu": false,
+      "keep_model_loaded": true,
+      "audio_prompt": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "FL_ChatterboxTurboTTS",
+    "_meta": {
+      "title": "FL Chatterbox Turbo TTS"
+    }
+  },
+  "3": {
+    "inputs": {
+      "audio": "voice - best one UK version 10-Leah.mp3"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "Load Audio"
+    }
+  },
+  "13": {
+    "inputs": {
+      "filename_prefix": "audio/ComfyUI",
+      "format": "flac",
+      "audio": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "SaveAudioAdvanced",
+    "_meta": {
+      "title": "Save Audio (Advanced)"
+    }
+  }
+}
