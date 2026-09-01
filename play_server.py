@@ -112,7 +112,7 @@ def generate_audio(dialog_script, user):
 
     data = resp.json()
     prompt_id = data["prompt_id"]
-
+    print(prompt_id)
     result = None
     initialwait = True
     start_time = time.time()
@@ -184,14 +184,15 @@ def generate_audio(dialog_script, user):
         f"{IMAGE_GEN_SERVER_URL}/view?filename={audio_filename}&subfolder={subfolder}&type=output"
     ).content
 
-    AUDIO_OUTPUT_DIR = "G:/images/audio"
+    AUDIO_OUTPUT_DIR = os.path.join("G:/images", "audio")
     os.makedirs(AUDIO_OUTPUT_DIR, exist_ok=True)
-    save_path = os.path.join(AUDIO_OUTPUT_DIR, audio_filename)
+    safe_filename = os.path.basename(audio_filename)
+    save_path = os.path.join(AUDIO_OUTPUT_DIR, safe_filename)
 
     with open(save_path, "wb") as f:
         f.write(audio_data)
 
-    return audio_filename
+    return safe_filename
 
 
 def generate_image(prompt):

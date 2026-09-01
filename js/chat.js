@@ -62,7 +62,7 @@ function appendAudioBubble(filename, caption) {
     audio.preload = "none";
 
     const source = document.createElement("source");
-    source.src = "http://localhost:8000/images/Audio/" + filename;
+    source.src = "http://localhost:8000/images/audio/" + filename;
     source.type = "audio/flac";
 
     audio.appendChild(source);
