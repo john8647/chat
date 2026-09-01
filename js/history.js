@@ -12,6 +12,16 @@ async function fetchHistory() {
         if (!line) continue;
         if (line.startsWith("Conversation history")) continue;
 
+        // USER AUDIO Messages
+        if (line.startsWith("User: [AUDIO:")) {
+            const match = line.match(/\[AUDIO:(.+?)\]/);
+            if (match) {
+                const filename = match[1];
+                appendAudioBubble(filename, `You said`, 'you');
+            }
+            continue;
+        }
+
         // USER MESSAGES
         if (line.startsWith("User:")) {
             appendBubble(line.replace("User:", "").trim(), "you");
@@ -33,7 +43,7 @@ async function fetchHistory() {
             const match = line.match(/\[AUDIO:(.+?)\]/);
             if (match) {
                 const filename = match[1];
-                appendAudioBubble(filename, `${characterName}'s image`);
+                appendAudioBubble(filename, `${characterName}'s said`);
             }
             continue;
         }

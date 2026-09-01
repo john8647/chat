@@ -44,17 +44,21 @@ function appendImageBubble(filename, caption) {
     chat.scrollTop = chat.scrollHeight;
 }
 
-function appendAudioBubble(filename, caption) {
-    console.log("Append audio bubble called!")
+function appendAudioBubble(filename, caption, who) {
+    console.log("Append audio bubble called! 1")
+
+
+    // ⭐  Audio bubble creation split here
     const row = document.createElement("div");
-    row.className = "message-row message-left";
+    row.className = "message-row " + (who === "you" ? "message-right" : "message-left");
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = "http://localhost:8000/images/" + characterName + ".png";
+    avatar.src = who === "you" ? "http://localhost:8000/images/you.png" : "http://localhost:8000/images/" + characterName + ".png";
 
     const bubble = document.createElement("div");
-    bubble.className = "chat-bubble audio-bubble";
+    bubble.className = "chat-bubble " + (who === "you" ? "audio-bubble-right" : "audio-bubble");
+
 
     // Create audio player
     const audio = document.createElement("audio");
@@ -75,9 +79,14 @@ function appendAudioBubble(filename, caption) {
     bubble.appendChild(audio);
     bubble.appendChild(cap);
 
-    row.appendChild(avatar);
-    row.appendChild(bubble);
-
+    if (who === "you") {
+        row.appendChild(bubble);
+        row.appendChild(avatar);
+    } else {
+        row.appendChild(avatar);
+        row.appendChild(bubble);
+    }
+   
     chat.appendChild(row);
     chat.scrollTop = chat.scrollHeight;
 }
@@ -85,6 +94,7 @@ function appendAudioBubble(filename, caption) {
 
 
 function appendBubble(text, who) {
+    console.log("Beginning speak 1")
 
     // ⭐ If this is an image marker, redirect to appendImageBubble
     if (text.includes("[IMAGE:")) {
@@ -331,25 +341,25 @@ async function sendMessage() {
         return;
     }
 
-      if (text.toLowerCase() === "say") {
-        //appendBubble(text, "you");
-        console.log("HERE! 9")
-        const res = await fetch("/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
+    if (text.toLowerCase().startsWith("say ")) {
+    //appendBubble(text, "you");
+    console.log("HERE! 9")
+    const res = await fetch("/play", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text })
+    });
 
-        const data = await res.json();
+    const data = await res.json();
 
-        // ⭐ Always show audio result even if replyMode = OFF
-        appendAudioBubble(data.reply.filename, data.reply.caption);
+    // ⭐ Always show audio result even if replyMode = OFF
+    appendAudioBubble(data.reply.filename, data.reply.caption);
 
-        input.value = "";
-        return;
+    input.value = "";
+    return;
     }
-    if (text.toLowerCase() === "said") {
-        
+    
+    if (text.toLowerCase().startsWith("said ")) {    
         console.log("HERE! 10")
         const res = await fetch("/play", {
             method: "POST",
@@ -359,8 +369,8 @@ async function sendMessage() {
 
         const data = await res.json();
 
-        // ⭐ Always show audio result even if replyMode = OFF
-        appendAudioBubble(data.reply.filename, data.reply.caption);
+        // ⭐ Always show audio result for user (you)
+        appendAudioBubble(data.reply.filename, data.reply.caption, 'you');
         
         input.value = "";
         return;

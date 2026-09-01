@@ -48,7 +48,7 @@ lora = {
 }
 voices = {
     "Leah": "voice - best one UK version 10-Leah.mp3",
-    "Chloe": "voice - best one UK version 3-Chloe.mp3"
+    "Chloe": "voice - best one UK version 6-Chloe untested.mp3"
 }
 # character
 persona = ""
@@ -108,7 +108,7 @@ def generate_audio(dialog_script, user):
 
     resp = requests.post(f"{IMAGE_GEN_SERVER_URL}/prompt",
                          json={"prompt": workflow})
-    print("RAW AUDIO RESPONSE:", resp.text)
+    # print("RAW AUDIO RESPONSE:", resp.text)
 
     data = resp.json()
     prompt_id = data["prompt_id"]
@@ -124,7 +124,7 @@ def generate_audio(dialog_script, user):
             return None
 
         if initialwait:
-            time.sleep(20)
+            time.sleep(5)
             initialwait = False
             continue
 
@@ -156,34 +156,52 @@ def generate_audio(dialog_script, user):
 
         time.sleep(1)
 
-     # ... after you’ve set result ...
+    # print("starting search")
+    history_data = requests.get(
+        f"{IMAGE_GEN_SERVER_URL}/history/{prompt_id}"
+    ).json()
 
-    # Audio workflow returns outputs directly
-    outputs = result.get("outputs", {})
-
-    node13 = outputs.get("13")
-    if not node13:
-        print("ERROR: Audio output node 13 not found")
-        print(json.dumps(result, indent=4))
+    # 1. Get the inner object for this prompt_id
+    prompt_result = history_data.get(prompt_id)
+    # print("no history")
+    if not prompt_result:
+        print("ERROR: No history entry for prompt_id", prompt_id)
+        print(json.dumps(history_data, indent=4))
+        # print("no history")
         return None
 
-    audio_list = node13.get("audio")
-    if not audio_list:
-        print("ERROR: No audio list found in node 13")
-        print(json.dumps(node13, indent=4))
+    # 2. Get outputs
+    outputs = prompt_result.get("outputs", {})
+    if not outputs:
+        print("ERROR: Audio outputs missing in history for", prompt_id)
+        print(json.dumps(prompt_result, indent=4))
         return None
 
+    # 3. Find the audio node (13 here, but we’ll scan)
+    # print("Audio file on he way: 1")
+    audio_node = None
+    for node_id, node_data in outputs.items():
+        if isinstance(node_data, dict) and isinstance(node_data.get("audio"), list) and node_data["audio"]:
+            audio_node = node_data
+            break
+    # print("Audio file on he way: 2")
+    if not audio_node:
+        print("ERROR: Audio output node not found in outputs")
+        print(json.dumps(outputs, indent=4))
+        return None
+
+    audio_list = audio_node["audio"]
     audio_info = audio_list[0]
     audio_filename = audio_info["filename"]
     subfolder = audio_info.get("subfolder", "")
 
-    print("Audio file:", audio_filename, "subfolder:", subfolder)
+    # print("Audio file:", audio_filename, "subfolder:", subfolder)
 
-    # Use subfolder when fetching the file
     audio_data = requests.get(
-        f"{IMAGE_GEN_SERVER_URL}/view?filename={audio_filename}&subfolder={subfolder}&type=output"
+        f"{IMAGE_GEN_SERVER_URL}/view?filename={audio_filename}&subfolder={subfolder}"
     ).content
 
+    # print("Audio file on he way: 3")
     AUDIO_OUTPUT_DIR = os.path.join("G:/images", "audio")
     os.makedirs(AUDIO_OUTPUT_DIR, exist_ok=True)
     safe_filename = os.path.basename(audio_filename)
@@ -586,17 +604,17 @@ def send_message(user_input):
     # SAY command (character speaks)
     if lower.startswith("say ") and len(parts) == 2:
         dialog_script = parts[1].strip()
-
+        # print(dialog_script)
         filename = generate_audio(dialog_script, character_name)
 
     # Add marker to history
-        history += f"{character_name}: [AUDIO {filename}]\n"
+        history += f"{character_name}: [AUDIO:{filename}]\n"
         save_history()
 
         return {
             "type": "audio",
             "filename": filename,
-            "caption": ""
+            "caption": f"{character_name} said"
         }
 
     # SAID command (user speaks)
@@ -606,13 +624,13 @@ def send_message(user_input):
         filename = generate_audio(dialog_script, "User")
 
         # Add marker to history
-        history += f"User: [AUDIO {filename}]\n"
+        history += f"User: [AUDIO:{filename}]\n"
         save_history()
 
         return {
             "type": "audio",
             "filename": filename,
-            "caption": ""
+            "caption": "You said"
         }
 
     # ⭐ If reply mode is OFF → do not generate AI replies

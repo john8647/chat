@@ -98,7 +98,7 @@ document.getElementById("save-options-btn").onclick = async () => {
         pingResult = await ping.json();
     }
 
-    console.log("Ping:", pingResult);
+    //console.log("Ping:", pingResult);
 
     // ⭐ 4. Close modal if:
     //    - both URLs are empty (test mode)
