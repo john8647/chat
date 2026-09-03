@@ -127,12 +127,10 @@ body {
 /* Chat area */
 .chat-area {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     background: #ECE5DD;
-
-    max-width: 1100px;          /* ⭐ prevents stretching on large screens */
-    margin: 0 auto;            /* ⭐ centers the chat area */
 }
 
 

@@ -18,16 +18,6 @@ const closeBtn = document.getElementById("close-options");
 
 
 
-window.addEventListener("DOMContentLoaded", () => {
-    const defaultItem = document.querySelector('.character-item[data-name="Jimmy"]');
-    if (defaultItem) {
-        selectCharacter("Jimmy", defaultItem);
-    }
-});
-
-
-
-
 function updateHeader() {
     document.getElementById("chatHeaderName").textContent = characterName;
     document.getElementById("chatHeaderAvatar").style.backgroundImage =

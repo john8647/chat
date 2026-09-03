@@ -13,6 +13,9 @@ app.use("/js", express.static(path.join(__dirname, "js")));
 
 app.use("/resources", express.static(path.join(__dirname, "resources")));
 app.use("/images", express.static(path.join(__dirname, "images")));   // ⭐ Add this
+app.get("/characters.json", (req, res) => {
+    res.sendFile(path.join(__dirname, "characters.json"));
+});
 
 // ⭐ Serve your front-end
 app.get("/", (req, res) => {

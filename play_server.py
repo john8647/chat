@@ -48,7 +48,7 @@ lora = {
 }
 voices = {
     "Leah": "voice - best one UK version 10-Leah.mp3",
-    "Chloe": "voice - best one UK version 6-Chloe untested.mp3"
+    "Chloe": "voice - winter2.mp3"
 }
 # character
 persona = ""
