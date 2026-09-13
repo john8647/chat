@@ -24,7 +24,7 @@ app.get("/", (req, res) => {
 
 // ⭐ Chat → Python API
 app.post("/play", async (req, res) => {
-    const response = await fetch("http://127.0.0.1:8000/chat", {
+    const response = await fetch("http://192.168.0.121:8000/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: req.body.message })
@@ -36,14 +36,14 @@ app.post("/play", async (req, res) => {
 
 // ⭐ History → Python API
 app.get("/history", async (req, res) => {
-    const response = await fetch("http://127.0.0.1:8000/history");
+    const response = await fetch("http://192.168.0.121:8000/history");
     const data = await response.json();
     res.json(data);
 });
 
 // ⭐ Image prompt → Python API
 app.get("/image", async (req, res) => {
-    const response = await fetch("http://127.0.0.1:8000/image");
+    const response = await fetch("http://192.168.0.121:8000/image");
     const data = await response.json();
     res.json(data);
 });
@@ -51,14 +51,14 @@ app.get("/image", async (req, res) => {
 
 
 app.get("/character", async (req, res) => {
-    const response = await fetch("http://127.0.0.1:8000/character");
+    const response = await fetch("http://192.168.0.121:8000/character");
     const data = await response.json();
     res.json(data);
 });
 
 
 app.post("/character/select", async (req, res) => {
-    const response = await fetch("http://127.0.0.1:8000/character/select", {
+    const response = await fetch("http://192.168.0.121:8000/character/select", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: req.body.name })
@@ -71,5 +71,5 @@ app.post("/character/select", async (req, res) => {
 
 // ⭐ Start Node server
 app.listen(3000, () => {
-    console.log("Server running on http://localhost:3000");
+    console.log("Server running on http://192.168.0.121:3000");
 });

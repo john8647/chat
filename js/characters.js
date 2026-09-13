@@ -27,7 +27,7 @@ async function loadCharacters() {
 
         const avatar = document.createElement("div");
         avatar.className = "avatar";
-        avatar.style.backgroundImage = `url("http://localhost:8000/images/${character.image || character.name}.png")`;
+        avatar.style.backgroundImage = `url("http://192.168.0.121:8000/images/${character.image || character.name}.png")`;
         avatar.style.backgroundSize = "cover";
 
         const name = document.createElement("div");

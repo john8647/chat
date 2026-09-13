@@ -2,10 +2,7 @@ node_modules/
 .venv/
 env.py
 README.md
-Chloe.json
-Chloe_history.json
-Leah.json
-Leah_history.json
-prompt_payload.json
+*.json
+!/character.json
 images/
 datasets/

@@ -1,6 +1,6 @@
 
 async function loadCharacterName() {
-    const res = await fetch("http://localhost:8000/active_character");
+    const res = await fetch("http://192.168.0.121:8000/active_character");
     const data = await res.json();
     characterName = data.character;
 }
@@ -16,18 +16,18 @@ function appendImageBubble(filename, caption) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src =  "http://localhost:8000/images/" + characterName + ".png";
+    avatar.src =  "http://192.168.0.121:8000/images/" + characterName + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "image-bubble";
 
     const img = document.createElement("img");
-    img.src = "http://localhost:8000/images/" + filename;
+    img.src = "http://192.168.0.121:8000/images/" + filename;
     img.className = "chat-image";
 
     img.onclick = function () {
         //console.log("Thumbnail clicked for:", filename);
-        openImageModal("http://localhost:8000/images/" + filename);
+        openImageModal("http://192.168.0.121:8000/images/" + filename);
     };
 
     const cap = document.createElement("div");
@@ -54,7 +54,7 @@ function appendAudioBubble(filename, caption, who) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "http://localhost:8000/images/you.png" : "http://localhost:8000/images/" + characterName + ".png";
+    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/you.png" : "http://192.168.0.121:8000/images/" + characterName + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "chat-bubble " + (who === "you" ? "audio-bubble-right" : "audio-bubble");
@@ -66,7 +66,7 @@ function appendAudioBubble(filename, caption, who) {
     audio.preload = "none";
 
     const source = document.createElement("source");
-    source.src = "http://localhost:8000/images/audio/" + filename;
+    source.src = "http://192.168.0.121:8000/images/audio/" + filename;
     source.type = "audio/flac";
 
     audio.appendChild(source);
@@ -121,7 +121,7 @@ function appendBubble(text, who) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "http://localhost:8000/images/you.png" : "http://localhost:8000/images/" + characterName + ".png";
+    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/you.png" : "http://192.168.0.121:8000/images/" + characterName + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "message-bubble " + (who === "you" ? "message-right" : "message-left");
@@ -174,7 +174,7 @@ function appendBubble(text, who) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "http://localhost:8000/images/you.png" : "http://localhost:8000/images/" + characterName + ".png";
+    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/you.png" : "http://192.168.0.121:8000/images/" + characterName + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "message-bubble " + (who === "you" ? "message-right" : "message-left");
@@ -261,7 +261,7 @@ async function sendMessage() {
 
         const directText = colonParts.slice(1).join(":").trim();
 
-        await fetch("http://localhost:8000/direct_character_say", {
+        await fetch("http://192.168.0.121:8000/direct_character_say", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -313,6 +313,23 @@ async function sendMessage() {
 
         appendImageBubble(data.reply.filename, data.reply.caption);
 
+        
+        return;
+    }
+
+    if (text.toLowerCase() === "view") {
+        //appendBubble(text, "you");
+        //console.log("HERE!")
+        const res = await fetch("/play", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+        input.value = "";
+        const data = await res.json();
+
+        
+        appendBubble(data, "you");
         
         return;
     }

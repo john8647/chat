@@ -2,10 +2,10 @@
   "2": {
     "inputs": {
       "text": "try to support me, I'm going to turn up-side-down and put my feet in the air.",
-      "temperature": 1.05,
+      "temperature": 0.80,
       "top_k": 1000,
       "top_p": 0.95,
-      "repetition_penalty": 1.2,
+      "repetition_penalty": 1.5,
       "seed": 42,
       "use_cpu": false,
       "keep_model_loaded": true,

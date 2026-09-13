@@ -19,6 +19,7 @@ TEST_MODE = True
 TEST_MODE_IMAGE = True
 SERVER_URL = ""
 IMAGE_GEN_SERVER_URL = ""
+LANGAUGE_MODEL = ""
 
 
 def evaluate_test_mode():
@@ -26,8 +27,36 @@ def evaluate_test_mode():
     TEST_MODE = not SERVER_URL or not SERVER_URL.strip()
     TEST_MODE_IMAGE = not IMAGE_GEN_SERVER_URL or not IMAGE_GEN_SERVER_URL.strip()
     print("TEST_MODE =", TEST_MODE)
-
     print("TEST_MODE_IMAGE =", TEST_MODE_IMAGE)
+
+
+def koboldcpp_alive():
+    global LANGUAGE_MODEL
+
+    try:
+        # Only query the API if we don't already know the model
+        if LANGUAGE_MODEL == "":
+            r = requests.get(f"{SERVER_URL}/api/v1/model", timeout=10)
+            print("Status:", r.status_code)
+
+            if r.status_code != 200:
+                print("KoboldCPP returned non-200 status.")
+                print("Response:", r.text[:200])
+                return False
+
+            data = r.json()
+            LANGUAGE_MODEL = data.get("result", "Unknown model")
+            print(f"KoboldCPP is alive. Loaded model: {LANGUAGE_MODEL}")
+            return True
+
+        else:
+            # Already cached — no need to query again
+            # print(f"KoboldCPP already known. Loaded model: {LANGUAGE_MODEL}")
+            return True
+
+    except Exception as e:
+        print("Exception:", repr(e))
+        return False
 
 
 # ---------------------------------------------------------
@@ -44,11 +73,15 @@ character_profile_changes = ""
 
 lora = {
     "Leah": "rosie_b",
-    "Chloe": "chloe_f1"
+    "Chloe": "chloe_f1",
+    "Layla": "chloe_f0",
+    "Alana": "Alana_f2"
 }
 voices = {
     "Leah": "voice - best one UK version 10-Leah.mp3",
-    "Chloe": "voice - winter2.mp3"
+    "Chloe": "voice - winter2.mp3",
+    "Layla": "voice other good - untested 3.mp3",
+    "Alana": "voice - Alana.mp3"
 }
 # character
 persona = ""
@@ -76,14 +109,23 @@ def normalize_queue_item(item):
 
 def comfyui_alive():
     try:
-        r = requests.get(f"{IMAGE_GEN_SERVER_URL}/system_stats", timeout=5)
+        r = requests.get(f"{IMAGE_GEN_SERVER_URL}/history", timeout=10)
+        print("Status:", r.status_code)
+        print("First 200 chars:", r.text[:200])
         return r.status_code == 200
-    except Exception:
+    except Exception as e:
+        print("Exception:", repr(e))
         return False
 
 
 def generate_audio(dialog_script, user):
     global character_name, voices
+    print("Test area")
+    r = requests.get(f"{IMAGE_GEN_SERVER_URL}/history", timeout=5)
+    t = f"{IMAGE_GEN_SERVER_URL}/history"
+    print(t)
+    print("Status:", r.status_code)
+    print("Response:", r.text[:200])
     if not comfyui_alive():
         print(
             f"ComfyUI server is NOT alive or unreachable.  Was about to say {dialog_script} as {user}")
@@ -217,6 +259,7 @@ def generate_image(prompt):
     global character_name
     if not comfyui_alive():
         print("ComfyUI server is NOT alive or unreachable.")
+        print(IMAGE_GEN_SERVER_URL)
         return None
 
     workflow_path = "resources/comfyui_api/image_workflow.json"
@@ -307,20 +350,19 @@ def generate_image_prompt():
 
     lora_name = lora.get(character_name, "")
     use_lora = bool(lora_name)
-
+    print(use_lora)
     if use_lora:
-        subject_line = f"A real photo of {lora_name} {description}, age {age}."
+        subject_line = f"{lora_name} age {age} {description}"
     else:
-        subject_line = f"A real photo of {description}, age {age}."
+        subject_line = f"{description}, age {age}."
 
     image_prompt = (
-        "Photorealistic.\n"
-        f"{subject_line}\n"
-        f"{pose}, looking {mood}.\n"
-        f"Wearing {outfit}. "
+        f"{subject_line}, "
+        f"{pose}, looking {mood}, "
+        f"{char_location}, "
+        f"Wears {outfit}, "
         f"{build_holding_text(inventory)}\n"
-        f"Scene: {char_location}."
-        f"Image Details: high quality, raw, detailed skin texture with visible pores."
+        f"Image Details:  raw, photo realistic, detailed skin texture and inperfections with visibles pores, casual amateur photo."
     )
 
     return image_prompt
@@ -559,8 +601,10 @@ def clean_history_for_prompt(history: str) -> str:
 # Chat logic
 # ---------------------------------------------------------
 def send_message(user_input):
-
-    global history, character_name, persona, character_profile_changes
+    global history, character_name, persona, character_profile_changes, reply_mode
+    # ⭐ If reply mode is OFF → do not generate AI replies
+    if not reply_mode:
+        print("not in reply mode... start the test now")
 
     parts = user_input.lower().strip().split()
 
@@ -597,6 +641,12 @@ def send_message(user_input):
             "filename": filename,
             "caption": f"{character_name} sent."
         }
+
+    if len(parts) == 1 and parts[0] == "view":
+        filename = generate_image_prompt()
+        history += f"You: {filename}\n"
+        save_history()
+        return filename
 
     parts = user_input.split(" ", 1)
     lower = user_input.lower()
@@ -657,8 +707,7 @@ def send_message(user_input):
 
     payload = {
         "prompt": prompt,
-        "max_length": 200,
-        "max_length": 50,
+        "max_length": 200,   # or 400–600 if you want longer replies
         "temperature": 0.6,
         "top_p": 0.7,
         "stop_sequence": ["User:", f"{character_name}:"]
@@ -670,11 +719,21 @@ def send_message(user_input):
     if TEST_MODE:
         reply = test_requests(payload)
     else:
+        # Check KoboldCPP status + model name (only queries once)
+        if not koboldcpp_alive():
+            print("KoboldCPP server is NOT alive or unreachable.")
+            return None
+
+        # Now safe to send the generation request
         response = requests.post(SERVER_URL, json=payload)
         data = response.json()
         reply = data["results"][0]["text"].strip()
 
-    history += reply + "\n"
+    if not reply.endswith("\n"):
+        history += reply + "\n"
+    else:
+        history += reply
+
     save_history()
 
     return reply
@@ -818,6 +877,8 @@ def update_character(req: dict):
         new_data["mood"] = new_mood
 
     new_outfit = req.get("outfit", outfit)
+    print(new_outfit)
+    print(outfit)
     if new_outfit != outfit:
         new_data["outfit"] = new_outfit
 
@@ -958,4 +1019,4 @@ def root():
 # Run server LAST
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="192.168.0.121", port=8000)

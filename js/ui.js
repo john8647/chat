@@ -21,7 +21,7 @@ const closeBtn = document.getElementById("close-options");
 function updateHeader() {
     document.getElementById("chatHeaderName").textContent = characterName;
     document.getElementById("chatHeaderAvatar").style.backgroundImage =
-        `url('http://localhost:8000/images/${characterName.toLowerCase()}.png')`;
+        `url('http://192.168.0.121:8000/images/${characterName.toLowerCase()}.png')`;
 }
 
 function setStatus(text) {
@@ -60,46 +60,29 @@ document.getElementById("save-options-btn").onclick = async () => {
     const serverUrl = document.getElementById("server-url-input").value.trim();
     const imageUrl = document.getElementById("image-url-input").value.trim();
 
-    await fetch("http://localhost:8000/reply_mode", {
+    // 1. Update reply mode
+    await fetch("http://192.168.0.121:8000/reply_mode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: replyMode })
     });
 
-    // 1. Send server URL
-    await fetch("http://localhost:8000/update_server_url", {
+    // 2. Update server URL (may be empty)
+    await fetch("http://192.168.0.121:8000/update_server_url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ server_url: serverUrl })
     });
 
-    // 2. Send image URL
-    await fetch("http://localhost:8000/update_image_url", {
+    // 3. Update image URL (may be empty)
+    await fetch("http://192.168.0.121:8000/update_image_url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image_url: imageUrl })
     });
 
-    // ⭐ 3. Only ping if at least one URL is non-empty
-    let pingResult = { ok: true };
-
-    if (serverUrl !== "" || imageUrl !== "") {
-        const ping = await fetch("http://localhost:8000/ping_server");
-        pingResult = await ping.json();
-    }
-
-    //console.log("Ping:", pingResult);
-
-    // ⭐ 4. Close modal if:
-    //    - both URLs are empty (test mode)
-    //    - OR ping succeeded
-    if ((serverUrl === "" && imageUrl === "") || pingResult.ok) {
-        document.getElementById("global-options-modal").classList.add("hidden");
-        return;
-    }
-
-    // ⭐ 5. Only show error if ping failed AND user entered something
-    alert("Saved, but ping failed: " + pingResult.error);
+    // 4. Close modal immediately — no ping tests
+    document.getElementById("global-options-modal").classList.add("hidden");
 };
 
 
@@ -121,7 +104,7 @@ document.getElementById("image-url-input").addEventListener("change", (e) => {
 });
 
 
-fetch("http://localhost:8000/update_image_url", {
+fetch("http://192.168.0.121:8000/update_image_url", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image_url: IMAGE_GEN_SERVER_URL })
@@ -129,7 +112,7 @@ fetch("http://localhost:8000/update_image_url", {
 
 
 
-fetch("http://localhost:8000/update_server_url", {
+fetch("http://192.168.0.121:8000/update_server_url", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ server_url: SERVER_URL })
@@ -137,7 +120,7 @@ fetch("http://localhost:8000/update_server_url", {
 
 
 
-//fetch("http://localhost:8000/ping_server")
+//fetch("http://192.168.0.121:8000/ping_server")
 //    .then(r => r.json())
 //   .then(data => console.log("Ping:", data));
 

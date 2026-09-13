@@ -10,5 +10,25 @@
     {
         "name": "Chloe",
         "image": "Chloe"
-    }
+    },
+    {
+        "name": "Andrew",
+        "image": "Andrew"
+    },
+    {
+	"name": "Yasaman",
+	"image": "Yasaman"
+    },
+    {
+	"name": "Katie",
+	"image": "Katie"
+    },
+    {
+	"name": "Layla",
+	"image": "Layla"
+    },
+    {
+	"name": "Alana",
+	"image": "Alana"
+    }    
 ]
