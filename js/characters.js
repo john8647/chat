@@ -103,3 +103,26 @@ async function selectCharacter(name, element) {
     await fetchHistory();
     setStatus("Online");
 }
+
+
+async function refreshCharacter() {
+    const res = await fetch("http://192.168.0.121:8000/refresh_character", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ character: characterName })
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+        //console.log("Character refreshed:", data.character);
+
+        // ⭐ Re‑load character data into the frontend
+        await selectCharacter(characterName);
+
+        //alert("Character profile reloaded.");
+    } else {
+        alert("Failed to refresh character.");
+    }
+}
+

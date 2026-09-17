@@ -44,6 +44,15 @@ body {
     cursor: pointer;
 }
 
+#refreshprofileBtn {
+    background: #075E54;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
 
 /* Sidebar */
 .sidebar {

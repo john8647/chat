@@ -10,6 +10,7 @@ let pose = ""
 let age = ""
 let SERVER_URL = "";
 let IMAGE_GEN_SERVER_URL = "";
+let AUDIO_GEN_SERVER_URL = "";
 let TEST_MODE = true;
 let replyMode = true;
 const modal = document.getElementById("global-options-modal");
@@ -59,7 +60,7 @@ function evaluateTestMode() {
 document.getElementById("save-options-btn").onclick = async () => {
     const serverUrl = document.getElementById("server-url-input").value.trim();
     const imageUrl = document.getElementById("image-url-input").value.trim();
-
+    const audioUrl = document.getElementById("audio-url-input").value.trim();
     // 1. Update reply mode
     await fetch("http://192.168.0.121:8000/reply_mode", {
         method: "POST",
@@ -81,7 +82,14 @@ document.getElementById("save-options-btn").onclick = async () => {
         body: JSON.stringify({ image_url: imageUrl })
     });
 
-    // 4. Close modal immediately — no ping tests
+    // 4. Update audio URL (may be empty)
+    await fetch("http://192.168.0.121:8000/update_audio_url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio_url: audioUrl })
+    });
+
+    // 5. Close modal immediately — no ping tests
     document.getElementById("global-options-modal").classList.add("hidden");
 };
 
@@ -95,14 +103,18 @@ document.getElementById("reply_mode").addEventListener("change", (e) => {
 
 document.getElementById("server-url-input").addEventListener("change", (e) => {
     SERVER_URL = normalizeUrl(e.target.value);
-    evaluateTestMode();
+    //evaluateTestMode();
 });
 
 document.getElementById("image-url-input").addEventListener("change", (e) => {
     IMAGE_GEN_SERVER_URL = normalizeUrl(e.target.value);
-    evaluateTestMode();
+    //evaluateTestMode();
 });
 
+document.getElementById("audio-url-input").addEventListener("change", (e) => {
+    AUDIO_GEN_SERVER_URL = normalizeUrl(e.target.value);
+    //evaluateTestMode();
+});
 
 fetch("http://192.168.0.121:8000/update_image_url", {
     method: "POST",
@@ -117,10 +129,4 @@ fetch("http://192.168.0.121:8000/update_server_url", {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ server_url: SERVER_URL })
 });
-
-
-
-//fetch("http://192.168.0.121:8000/ping_server")
-//    .then(r => r.json())
-//   .then(data => console.log("Ping:", data));
 

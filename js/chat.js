@@ -5,6 +5,37 @@ async function loadCharacterName() {
     characterName = data.character;
 }
 
+function handleReply(reply) {
+
+    // Determine speaker
+    const who = reply.caption === "You said" ? "you" : "character";
+
+    // Route by type
+    if (reply.type === "text") {
+        appendBubble(reply.text, who);
+        return;
+    }
+
+    if (reply.type === "audio") {
+        appendAudioBubble(reply.filename, reply.caption, who);
+        return;
+    }
+
+    if (reply.type === "audio_text") {
+        appendBubble(reply.text, who);
+        appendAudioBubble(reply.filename, reply.caption, who);
+        return;
+    }
+
+    if (reply.type === "none") {
+        return;
+    }
+
+    console.warn("Unknown reply type:", reply);
+}
+
+
+
 loadCharacterName();
 
 const chat = document.getElementById("chat");
@@ -261,7 +292,7 @@ async function sendMessage() {
 
         const directText = colonParts.slice(1).join(":").trim();
 
-        await fetch("http://192.168.0.121:8000/direct_character_say", {
+        const res = await fetch("http://192.168.0.121:8000/direct_character_say", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -270,10 +301,15 @@ async function sendMessage() {
             })
         });
 
-        appendBubble(directText, "character");
+        const data = await res.json();
+
+        console.log("Reply received:", data.reply);
+        handleReply(data.reply);
+
         input.value = "";
         return;
     }
+
 
     // ⭐ Image command
     const spaceParts = text.split(" ");
@@ -319,7 +355,7 @@ async function sendMessage() {
 
     if (text.toLowerCase() === "view") {
         //appendBubble(text, "you");
-        //console.log("HERE!")
+        
         const res = await fetch("/play", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -358,7 +394,7 @@ async function sendMessage() {
         return;
     }
 
-    if (text.toLowerCase().startsWith("say ")) {
+    if (text.toLowerCase().startsWith("say ") && AUDIO_GEN_SERVER_URL.length > 1) {
     //appendBubble(text, "you");
     console.log("HERE! 9")
     const res = await fetch("/play", {
@@ -376,7 +412,7 @@ async function sendMessage() {
     return;
     }
     
-    if (text.toLowerCase().startsWith("said ")) {    
+    if (text.toLowerCase().startsWith("said ") && AUDIO_GEN_SERVER_URL.length > 1) {    
         console.log("HERE! 10")
         const res = await fetch("/play", {
             method: "POST",
@@ -416,7 +452,7 @@ async function sendMessage() {
 
     // ⭐ AI reply
     showTyping();
-
+    
     const res = await fetch("/play", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -424,13 +460,16 @@ async function sendMessage() {
     });
 
     const data = await res.json();
-
+    //console.log("HERE!1234")
+    //console.log(data)
     hideTyping();
 
     if (data.reply && data.reply.type === "image") {
         appendImageBubble(data.reply.filename, data.reply.caption);
     } else {
-        appendBubble(data.reply, "character");
+        //appendBubble(data.reply, "character");
+        handleReply(data.reply);
+
     }
 }
 

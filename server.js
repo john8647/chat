@@ -50,6 +50,7 @@ app.get("/image", async (req, res) => {
 
 
 
+
 app.get("/character", async (req, res) => {
     const response = await fetch("http://192.168.0.121:8000/character");
     const data = await response.json();

@@ -1,0 +1,38 @@
+ssh -i johnkey.txt -p 50725 root@64.64.224.51 -L 8188:localhost:8188  -L 9000:localhost:9000
+
+ssh -i johnkey.txt -p 50725 root@64.64.224.51 -L 8188:localhost:8188  -L 9000:localhost:9000
+
+apt update && apt install python3-pip -y
+ps aux | grep 2231
+
+apt update && apt install python3-pip -y
+git clone https://github.com/comfyanonymous/ComfyUI.git
+cd ComfyUI
+pip3 install -r requirements.txt
+apt install tmux -y
+
+cloned ComfyUI and ran install. We ran comfyui on port 8188, you need to allow the remote ssh from terminal by adding the -L mappings for that port.  
+python3 main.py --listen --port 8188
+#follow the port to 8188
+ssh -i johnkey.txt -p 50836 root@202.215.0.218 -L 8188:localhost:8188
+ssh -i johnkey.txt -p 50836 root@202.215.0.218 -L 9000:localhost:9000
+we prepared jupyter labs in the same way, that gave us a new port 9000. But only 1 command at once can provide port mappings!
+pip install jupyterlab
+jupyter lab --generate-config
+jupyter lab password
+jupyter lab --ip=0.0.0.0 --port=9000 --no-browser --allow-root
+
+use one terminal for each process.   You can chain them if you like
+ssh -i johnkey.txt -p 50836 root@202.215.0.218 -L 8188:localhost:8188  -L 9000:localhost:9000
+
+ssh -i johnkey.txt -p 50836 root@202.215.0.218 \
+  -L 8188:localhost:8188 \
+  -L 9000:localhost:9000 \
+  -L 7000:localhost:7000
+ssh -i johnkey.txt -p 50836 root@202.215.0.218 
+  -L 8188:localhost:8188 \
+  -L 9000:localhost:9000
+
+apt install tmux -y
+
+tmux

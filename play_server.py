@@ -1,15 +1,15 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-import uvicorn
-import random
-import requests
-import json
-import os
-import uuid
-import time
-from datetime import datetime
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime
+import time
+import uuid
+import os
+import json
+import requests
+import random
+import uvicorn
+from pydantic import BaseModel
+from fastapi import FastAPI
 
 # ---------------------------------------------------------
 # Configuration
@@ -17,42 +17,52 @@ from fastapi.staticfiles import StaticFiles
 reply_mode = True
 TEST_MODE = True
 TEST_MODE_IMAGE = True
+TEST_MODE_AUDIO = True
 SERVER_URL = ""
 IMAGE_GEN_SERVER_URL = ""
-LANGAUGE_MODEL = ""
+AUDIO_GEN_SERVER_URL = ""
+TTS_mode = "none"  # default mode when no TTS mode not set.
+# when the character replies we should get Audio only not their text as words in the UI.
+# TTS_mode = "character_only"
+# when the character replies we should get Audio only not their text as words in the UI.
+# TTS_mode = "everybody_talking"
+# when the character replies we should get Audio and their words added too.
+# TTS_mode = "character_only_with_text"
+# when the character replies we should get Audio and their words added too.
+# TTS_mode = "everybody_talking_with_text"
 
 
 def evaluate_test_mode():
-    global TEST_MODE, TEST_MODE_IMAGE, SERVER_URL, IMAGE_GEN_SERVER_URL
+    global TEST_MODE, TEST_MODE_IMAGE, SERVER_URL, IMAGE_GEN_SERVER_URL, AUDIO_GEN_SERVER_URL
     TEST_MODE = not SERVER_URL or not SERVER_URL.strip()
     TEST_MODE_IMAGE = not IMAGE_GEN_SERVER_URL or not IMAGE_GEN_SERVER_URL.strip()
+    TEST_MODE_AUDIO = not AUDIO_GEN_SERVER_URL or not AUDIO_GEN_SERVER_URL.strip()
     print("TEST_MODE =", TEST_MODE)
     print("TEST_MODE_IMAGE =", TEST_MODE_IMAGE)
+    print("TEST_MODE_AUDIO =", TEST_MODE_AUDIO)
+
+
+LANGUAGE_MODEL = None
 
 
 def koboldcpp_alive():
     global LANGUAGE_MODEL
-
     try:
-        # Only query the API if we don't already know the model
-        if LANGUAGE_MODEL == "":
+        # If we don't know the model yet, query the server
+        if LANGUAGE_MODEL is None:
             r = requests.get(f"{SERVER_URL}/api/v1/model", timeout=10)
-            print("Status:", r.status_code)
-
             if r.status_code != 200:
-                print("KoboldCPP returned non-200 status.")
-                print("Response:", r.text[:200])
+                print("Server returned non-200:", r.status_code)
                 return False
 
             data = r.json()
-            LANGUAGE_MODEL = data.get("result", "Unknown model")
-            print(f"KoboldCPP is alive. Loaded model: {LANGUAGE_MODEL}")
+            LANGUAGE_MODEL = data.get("result")
+            print("Loaded model:", LANGUAGE_MODEL)
             return True
 
-        else:
-            # Already cached — no need to query again
-            # print(f"KoboldCPP already known. Loaded model: {LANGUAGE_MODEL}")
-            return True
+        # Already cached
+        print("Model already known:", LANGUAGE_MODEL)
+        return True
 
     except Exception as e:
         print("Exception:", repr(e))
@@ -72,16 +82,18 @@ character_profile_changes = ""
 # }
 
 lora = {
-    "Leah": "rosie_b",
-    "Chloe": "chloe_f1",
-    "Layla": "chloe_f0",
-    "Alana": "Alana_f2"
+    "Alana": "rosie_b",
+    "Chloe": "Chloe_f4",
+    "Layla": "chloe_f1",
+    "Leah": "Alana_f2",
+    "Koti": "Koti_f3"
 }
 voices = {
     "Leah": "voice - best one UK version 10-Leah.mp3",
-    "Chloe": "voice - winter2.mp3",
-    "Layla": "voice other good - untested 3.mp3",
-    "Alana": "voice - Alana.mp3"
+    "Chloe": "voice other good - untested 3.mp3",
+    "Layla": "voice - best one UK version untested -3",
+    "Alana": "voice - Alana.mp3",
+    "Koti": "voice - winter.mp3"
 }
 # character
 persona = ""
@@ -117,20 +129,36 @@ def comfyui_alive():
         print("Exception:", repr(e))
         return False
 
+# ---------------------------------------------------------
+# Audio generation helpers
+# ---------------------------------------------------------
+
+
+def comfyui_alive_audio():
+    try:
+        r = requests.get(f"{AUDIO_GEN_SERVER_URL}/history", timeout=10)
+        print("Status:", r.status_code)
+        print("First 200 chars:", r.text[:200])
+        return r.status_code == 200
+    except Exception as e:
+        print("Exception:", repr(e))
+        return False
+
 
 def generate_audio(dialog_script, user):
     global character_name, voices
     print("Test area")
-    r = requests.get(f"{IMAGE_GEN_SERVER_URL}/history", timeout=5)
-    t = f"{IMAGE_GEN_SERVER_URL}/history"
+    r = requests.get(f"{AUDIO_GEN_SERVER_URL}/history", timeout=5)
+    t = f"{AUDIO_GEN_SERVER_URL}/history"
     print(t)
     print("Status:", r.status_code)
     print("Response:", r.text[:200])
-    if not comfyui_alive():
+    if not comfyui_alive_audio():
         print(
-            f"ComfyUI server is NOT alive or unreachable.  Was about to say {dialog_script} as {user}")
+            f"ComfyUI audio server is NOT alive or unreachable. Check Dev mode. Was about to say {dialog_script} as {user}")
         return None
     workflow_path = "resources/comfyui_api/audio_workflow.json"
+
     with open(workflow_path, "r") as f:
         workflow = json.load(f)
         # 1. User speaking → use user's own voice
@@ -146,9 +174,11 @@ def generate_audio(dialog_script, user):
         else:
             # Unknown character → disable voice or use fallback
             workflow["3"]["inputs"]["audio"] = "a-male-voice-br-go.mp3"
-    workflow["2"]["inputs"]["text"] = dialog_script
 
-    resp = requests.post(f"{IMAGE_GEN_SERVER_URL}/prompt",
+    workflow["2"]["inputs"]["text"] = dialog_script
+    random_prefix = str(uuid.uuid4())
+    workflow["13"]["inputs"]["filename_prefix"] = random_prefix
+    resp = requests.post(f"{AUDIO_GEN_SERVER_URL}/prompt",
                          json={"prompt": workflow})
     # print("RAW AUDIO RESPONSE:", resp.text)
 
@@ -170,7 +200,7 @@ def generate_audio(dialog_script, user):
             initialwait = False
             continue
 
-        queue = requests.get(f"{IMAGE_GEN_SERVER_URL}/queue").json()
+        queue = requests.get(f"{AUDIO_GEN_SERVER_URL}/queue").json()
         all_items = (
             queue.get("queue_pending", []) +
             queue.get("queue_running", []) +
@@ -179,7 +209,7 @@ def generate_audio(dialog_script, user):
 
         if not all_items:
             history_data = requests.get(
-                f"{IMAGE_GEN_SERVER_URL}/history/{prompt_id}").json()
+                f"{AUDIO_GEN_SERVER_URL}/history/{prompt_id}").json()
             result = history_data
             break
 
@@ -200,7 +230,7 @@ def generate_audio(dialog_script, user):
 
     # print("starting search")
     history_data = requests.get(
-        f"{IMAGE_GEN_SERVER_URL}/history/{prompt_id}"
+        f"{AUDIO_GEN_SERVER_URL}/history/{prompt_id}"
     ).json()
 
     # 1. Get the inner object for this prompt_id
@@ -240,7 +270,7 @@ def generate_audio(dialog_script, user):
     # print("Audio file:", audio_filename, "subfolder:", subfolder)
 
     audio_data = requests.get(
-        f"{IMAGE_GEN_SERVER_URL}/view?filename={audio_filename}&subfolder={subfolder}"
+        f"{AUDIO_GEN_SERVER_URL}/view?filename={audio_filename}&subfolder={subfolder}"
     ).content
 
     # print("Audio file on he way: 3")
@@ -591,9 +621,8 @@ def clean_history_for_prompt(history: str) -> str:
     # with open("character_test_clean_history.json", "w", encoding="utf-8") as f:
     #    f.write(debug_output)
 
-    # ⭐ Literal \n characters for the model
-    cleaned_for_model = "\\n".join(final_lines)
-
+    # ⭐ Literal newlines for the model (correct)
+    cleaned_for_model = "\n".join(final_lines)
     return cleaned_for_model
 
 
@@ -601,7 +630,7 @@ def clean_history_for_prompt(history: str) -> str:
 # Chat logic
 # ---------------------------------------------------------
 def send_message(user_input):
-    global history, character_name, persona, character_profile_changes, reply_mode
+    global history, character_name, persona, character_profile_changes, reply_mode, TTS_mode
     # ⭐ If reply mode is OFF → do not generate AI replies
     if not reply_mode:
         print("not in reply mode... start the test now")
@@ -648,52 +677,81 @@ def send_message(user_input):
         save_history()
         return filename
 
+    lower = user_input.lower().strip()
     parts = user_input.split(" ", 1)
-    lower = user_input.lower()
 
-    # SAY command (character speaks)
+    # ---------------------------------------------------------
+    # 1. SAY (character speaks manually)
+    # ---------------------------------------------------------
     if lower.startswith("say ") and len(parts) == 2:
-        dialog_script = parts[1].strip()
-        # print(dialog_script)
-        filename = generate_audio(dialog_script, character_name)
+        text = parts[1].strip()
 
-    # Add marker to history
+        filename = generate_audio(text, character_name)
+
+        history += f"{character_name}: {text}\n"
         history += f"{character_name}: [AUDIO:{filename}]\n"
         save_history()
 
         return {
-            "type": "audio",
+            "type": "audio_text" if "with_text" in TTS_mode else "audio",
             "filename": filename,
+            "text": text if "with_text" in TTS_mode else None,
             "caption": f"{character_name} said"
         }
 
-    # SAID command (user speaks)
+    # ---------------------------------------------------------
+    # 2. SAID (user speaks manually)
+    # ---------------------------------------------------------
     if lower.startswith("said ") and len(parts) == 2:
-        dialog_script = parts[1].strip()
+        text = parts[1].strip()
+        filename = generate_audio(text, "User")
 
-        filename = generate_audio(dialog_script, "User")
-
-        # Add marker to history
+        history += f"User: {text}\n"
         history += f"User: [AUDIO:{filename}]\n"
         save_history()
 
         return {
-            "type": "audio",
+            "type": "audio_text" if "with_text" in TTS_mode else "audio",
             "filename": filename,
+            "text": text if "with_text" in TTS_mode else None,
             "caption": "You said"
         }
 
-    # ⭐ If reply mode is OFF → do not generate AI replies
-    if not reply_mode:
-        print("Reply mode OFF — skipping AI reply.")
-        history += f"User: {user_input}\n"
-        save_history()
-        return ""   # or return None or return {"reply": ""}
+    # ---------------------------------------------------------
+    # 3. Normal user text (not SAID)
+    # ---------------------------------------------------------
+    history += f"User: {user_input}\n"
 
-    history += f"User: {user_input}\n{character_name}: "
-    # Build cleaned history (strip short messages, remove image markers)
+    # Automatic user TTS only in these modes
+    if TTS_mode in ["everybody_talking", "everybody_talking_with_text"]:
+        filename = generate_audio(user_input, "User")
+        history += f"User: [AUDIO:{filename}]\n"
+        save_history()
+
+        return {
+            "type": "audio_text" if "with_text" in TTS_mode else "audio",
+            "filename": filename,
+            "text": user_input if "with_text" in TTS_mode else None,
+            "caption": "You said"
+        }
+
+    # ---------------------------------------------------------
+    # 4. Reply mode OFF → no AI reply, but history still updated
+    # ---------------------------------------------------------
+    if not reply_mode:
+        save_history()
+        return {"type": "none", "text": ""}
+
+    # ---------------------------------------------------------
+    # 5. Prepare history for character reply
+    # ---------------------------------------------------------
+    history += f"{character_name}: "
+
+    # ---------------------------------------------------------
+    # 6. Build prompt for AI
+    # ---------------------------------------------------------
     cleaned_history = clean_history_for_prompt(history)
-    print(character_profile_changes)
+
     if character_profile_changes.strip():
         prompt = (
             persona
@@ -701,21 +759,20 @@ def send_message(user_input):
             + character_profile_changes + "\n"
             + cleaned_history
         )
-        character_profile_changes = character_profile_changes.strip()
     else:
         prompt = persona + "\n" + cleaned_history
 
     payload = {
         "prompt": prompt,
-        "max_length": 200,   # or 400–600 if you want longer replies
+        "max_length": 200,
         "temperature": 0.6,
         "top_p": 0.7,
         "stop_sequence": ["User:", f"{character_name}:"]
     }
 
-    with open("prompt_payload.json", "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=4)
-
+    # ---------------------------------------------------------
+    # 7. Generate AI reply
+    # ---------------------------------------------------------
     if TEST_MODE:
         reply = test_requests(payload)
     else:
@@ -736,7 +793,32 @@ def send_message(user_input):
 
     save_history()
 
-    return reply
+    # ---------------------------------------------------------
+    # 8. Character TTS (combined logic)
+    # ---------------------------------------------------------
+    if TTS_mode == "none":
+        return {"type": "text", "text": reply}
+
+    # Modes where character speaks
+    if TTS_mode in [
+        "character_only",
+        "everybody_talking",
+        "character_only_with_text",
+        "everybody_talking_with_text"
+    ]:
+        filename = generate_audio(reply, character_name)
+        history += f"{character_name}: [AUDIO:{filename}]\n"
+        save_history()
+
+        return {
+            "type": "audio_text" if "with_text" in TTS_mode else "audio",
+            "filename": filename,
+            "text": reply if "with_text" in TTS_mode else None,
+            "caption": f"{character_name} said"
+        }
+
+    # Fallback (should never happen)
+    return {"type": "text", "text": reply}
 
 
 # ---------------------------------------------------------
@@ -804,6 +886,27 @@ def update_image_url(data: ImageUrlUpdate):
     return {"ok": True}
 
 
+class AudioUrlUpdate(BaseModel):
+    audio_url: str
+
+
+@app.post("/update_audio_url")
+def update_audio_url(data: AudioUrlUpdate):
+    global AUDIO_GEN_SERVER_URL
+    global TTS_mode
+
+    AUDIO_GEN_SERVER_URL = data.audio_url.strip()
+    evaluate_test_mode()
+
+    # Set TTS mode based on whether URL is present
+    if len(AUDIO_GEN_SERVER_URL) > 0:
+        TTS_mode = "character_only"
+    else:
+        TTS_mode = "none"
+
+    return {"ok": True}
+
+
 class ChatRequest(BaseModel):
     message: str
 
@@ -860,6 +963,20 @@ def select_character(req: dict):
         "pose": pose,
         "age": age
     }
+
+
+@app.post("/refresh_character")
+def refresh_character(data: dict):
+    global character_name
+
+    # Optional: allow switching character
+    if "character" in data:
+        character_name = data["character"]
+
+    # FIX: call without arguments
+    load_character_data()
+
+    return {"ok": True, "character": character_name}
 
 
 @app.post("/character/update")
@@ -990,7 +1107,7 @@ def set_reply_mode(data: dict):
 
 @app.post("/direct_character_say")
 async def direct_character_say(data: dict):
-    global history, character_name
+    global history, character_name, TTS_mode
 
     character = data.get("character")
     text = data.get("text")
@@ -998,16 +1115,37 @@ async def direct_character_say(data: dict):
     if not character or not text:
         return {"ok": False, "error": "Missing character or text"}
 
-    # Append to in‑memory history
+    # ---------------------------------------------------------
+    # If TTS mode is active → use SAY command through send_message
+    # ---------------------------------------------------------
+    if TTS_mode in [
+        "character_only",
+        "everybody_talking",
+        "character_only_with_text",
+        "everybody_talking_with_text"
+    ]:
+        dialog = "say " + text
+        reply = send_message(dialog)
+        return {"reply": reply}
+
+    # ---------------------------------------------------------
+    # TTS_mode == "none" → direct text write, no audio
+    # ---------------------------------------------------------
     history += f"{character}: {text}\n"
 
-    # Save to correct per‑character history file
     with open(history_filename(), "w", encoding="utf-8") as f:
         json.dump({"history": history}, f, indent=2)
 
     print(f"[DIRECT] {character}: {text}")
 
-    return {"ok": True}
+    # IMPORTANT: return in the same format as send_message()
+    return {
+        "reply": {
+            "type": "text",
+            "text": text,
+            "caption": f"{character} said"
+        }
+    }
 
 
 @app.get("/")
