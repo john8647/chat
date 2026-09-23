@@ -1,0 +1,32 @@
+import os
+import subprocess
+
+base = "/root/ComfyUI/custom_nodes"
+
+nodes = {
+    "ComfyUI-Manager": "https://github.com/ltdrdata/ComfyUI-Manager",
+    "ComfyUI-batching-nodes": "https://github.com/Hahihula/ComfyUI-batching-nodes",
+    "was-node-suite-comfyui": "https://github.com/ltdrdata/was-node-suite-comfyui"
+}
+
+def run(cmd):
+    print(f"→ {cmd}")
+    subprocess.run(cmd, shell=True, check=False)
+
+for folder, repo in nodes.items():
+    path = os.path.join(base, folder)
+
+    if os.path.exists(path):
+        print(f"✔ {folder} already exists, skipping clone.")
+    else:
+        print(f"📥 Cloning {folder}...")
+        run(f"git clone {repo} {path}")
+
+    req = os.path.join(path, "requirements.txt")
+    if os.path.exists(req):
+        print(f"📦 Installing requirements for {folder}...")
+        run(f"pip install -r \"{req}\"")
+    else:
+        print(f"⚠ No requirements.txt for {folder}")
+
+print("✅ All nodes processed.")

@@ -83,7 +83,7 @@
       "lora_1": {
         "on": true,
         "lora": "chloe_f1.safetensors",
-        "strength": 0.8
+        "strength": 0.9
       },
       "lora_2": {
         "on": true,

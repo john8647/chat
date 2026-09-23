@@ -10,7 +10,8 @@ nodes = {
     "ComfyUI-Manager": "https://github.com/ltdrdata/ComfyUI-Manager",
     "ComfyUI_Fill-ChatterBox": "https://github.com/filliptm/ComfyUI_Fill-ChatterBox",
     "RES4LYF": "https://github.com/bozoyan/comfyui_RES4LYF",
-    "rgthree-comfy": "https://github.com/rgthree/rgthree-comfy"
+    "rgthree-comfy": "https://github.com/rgthree/rgthree-comfy",
+    "ComfyUI_Comfyroll_CustomNodes": "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes"
 }
 
 def run(cmd):

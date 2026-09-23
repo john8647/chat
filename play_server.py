@@ -82,10 +82,10 @@ character_profile_changes = ""
 # }
 
 lora = {
-    "Alana": "rosie_b",
-    "Chloe": "Chloe_f4",
-    "Layla": "chloe_f1",
-    "Leah": "Alana_f2",
+    "Alana": "Alana_f1",
+    "Chloe": "Chloe_f5",
+    "Layla": "chloe_f0",
+    "Leah": "Leah_f1",
     "Koti": "Koti_f3"
 }
 voices = {
@@ -382,9 +382,9 @@ def generate_image_prompt():
     use_lora = bool(lora_name)
     print(use_lora)
     if use_lora:
-        subject_line = f"{lora_name} age {age} {description}"
+        subject_line = f"{lora_name},  {description}"
     else:
-        subject_line = f"{description}, age {age}."
+        subject_line = f"{description}"
 
     image_prompt = (
         f"{subject_line}, "

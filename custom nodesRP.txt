@@ -1,0 +1,38 @@
+import os
+import subprocess
+
+base = "/workspace/runpod-slim/ComfyUI/custom_nodes"
+
+nodes = {
+    "ComfyUI-KJNodes": "https://github.com/kijai/ComfyUI-KJNodes",
+    "comfyui-krea2edit": "https://github.com/lbouaraba/comfyui-krea2edit",
+    "ComfyUI-Krea2T-Enhancer": "https://github.com/capitan01R/ComfyUI-Krea2T-Enhancer",
+    "ComfyUI-Manager": "https://github.com/ltdrdata/ComfyUI-Manager",
+    "ComfyUI_Fill-ChatterBox": "https://github.com/filliptm/ComfyUI_Fill-ChatterBox",
+    "RES4LYF": "https://github.com/bozoyan/comfyui_RES4LYF",
+    "rgthree-comfy": "https://github.com/rgthree/rgthree-comfy",
+    "ComfyUI_Comfyroll_CustomNodes": "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes",
+    "ComfyUI-batching-nodes": "https://github.com/Hahihula/ComfyUI-batching-nodes"
+}
+
+def run(cmd):
+    print(f"→ {cmd}")
+    subprocess.run(cmd, shell=True, check=False)
+
+for folder, repo in nodes.items():
+    path = os.path.join(base, folder)
+
+    if os.path.exists(path):
+        print(f"✔ {folder} already exists, skipping clone.")
+    else:
+        print(f"📥 Cloning {folder}...")
+        run(f"git clone {repo} {path}")
+
+    req = os.path.join(path, "requirements.txt")
+    if os.path.exists(req):
+        print(f"📦 Installing requirements for {folder}...")
+        run(f"pip install -r \"{req}\"")
+    else:
+        print(f"⚠ No requirements.txt for {folder}")
+
+print("✅ All nodes processed.")
