@@ -18,6 +18,7 @@ function openProfile() {
     document.getElementById("profileDescription").value = description;
     document.getElementById("profilePose").value = pose;
     document.getElementById("profileAge").value = age;
+    document.getElementById("profileThinking_about").value = thinking_about;
     panel.style.display = "block";
 }
 
@@ -35,7 +36,8 @@ async function saveProfile() {
         inventory: document.getElementById("profileInventory").value,
         description: document.getElementById("profileDescription").value,
         pose: document.getElementById("profilePose").value,
-        age: document.getElementById("profileAge").value
+        age: document.getElementById("profileAge").value,
+        thinking_about: document.getElementById("profileThinking_about").value
             .split(",")
             .map(s => s.trim())
     };
@@ -60,5 +62,6 @@ async function saveProfile() {
     description = updated.description;
     pose = updated.pose;
     age = updated.age;
+    thinking_about = updated.thinking_about;
     closeProfile();
 }

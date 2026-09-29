@@ -61,6 +61,7 @@ document.getElementById("save-options-btn").onclick = async () => {
     const serverUrl = document.getElementById("server-url-input").value.trim();
     const imageUrl = document.getElementById("image-url-input").value.trim();
     const audioUrl = document.getElementById("audio-url-input").value.trim();
+    const tts_mode = document.getElementById('tts-mode').value;
     // 1. Update reply mode
     await fetch("http://192.168.0.121:8000/reply_mode", {
         method: "POST",
@@ -89,7 +90,14 @@ document.getElementById("save-options-btn").onclick = async () => {
         body: JSON.stringify({ audio_url: audioUrl })
     });
 
-    // 5. Close modal immediately — no ping tests
+    // 5. Update the TTS mode in game.
+    await fetch("http://192.168.0.121:8000/update_tts_mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_tts_mode: tts_mode })
+    });
+    
+    // 6. Close modal immediately — no ping tests
     document.getElementById("global-options-modal").classList.add("hidden");
 };
 

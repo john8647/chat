@@ -83,6 +83,7 @@ async function selectCharacter(name, element) {
     description = data.description;
     pose = data.pose;
     age = data.age;
+    thinking_about = data.thinking_about;
     // Update profile fields
     let inv = [];
 
@@ -100,6 +101,7 @@ async function selectCharacter(name, element) {
     document.getElementById("profileDescription").value = description;
     document.getElementById("profilePose").value = pose;
     document.getElementById("profileAge").value = age;
+    document.getElementById("profileThinking_about").value = thinking_about;
     await fetchHistory();
     setStatus("Online");
 }

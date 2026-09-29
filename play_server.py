@@ -10,6 +10,8 @@ import random
 import uvicorn
 from pydantic import BaseModel
 from fastapi import FastAPI
+from memory.manager import update_memory
+from memory.dialogue import add_user_line, add_character_line, get_dialogue_history
 
 # ---------------------------------------------------------
 # Configuration
@@ -89,11 +91,11 @@ lora = {
     "Koti": "Koti_f3"
 }
 voices = {
-    "Leah": "voice - best one UK version 10-Leah.mp3",
-    "Chloe": "voice other good - untested 3.mp3",
-    "Layla": "voice - best one UK version untested -3",
-    "Alana": "voice - Alana.mp3",
-    "Koti": "voice - winter.mp3"
+    "Leah": "a-female-voice_B.mp3",
+    "Chloe": "a-female-voice_A1.mp3",
+    "Layla": "a-female-voice_D.mp3",
+    "Alana": "a-female-voice_A.mp3",
+    "Koti": "a-female-voice_D1.mp3"
 }
 # character
 persona = ""
@@ -106,11 +108,13 @@ history = ""
 description = ""
 pose = ""
 age = ""
-
+thinking_about = ""
 
 # ---------------------------------------------------------
 # Image generation helpers
 # ---------------------------------------------------------
+
+
 def normalize_queue_item(item):
     if isinstance(item, list) and len(item) > 0 and isinstance(item[0], dict):
         return item[0]
@@ -163,7 +167,7 @@ def generate_audio(dialog_script, user):
         workflow = json.load(f)
         # 1. User speaking → use user's own voice
     if user == "User":
-        workflow["3"]["inputs"]["audio"] = "voice - my own voice.mp3"
+        workflow["3"]["inputs"]["audio"] = "a-male-voice_A.mp3"
     else:
         # 2. Character speaking → look up voice
         voice_file = voices.get(character_name)
@@ -418,7 +422,7 @@ def build_holding_text(inventory):
 # Character data loading/saving
 # ---------------------------------------------------------
 def load_character_data():
-    global persona, mood, outfit, char_location, inventory, description, pose, age, character_name
+    global persona, mood, outfit, char_location, inventory, description, pose, age, thinking_about, character_name
 
     filename = f"{character_name}.json"
     if os.path.exists(filename):
@@ -433,6 +437,8 @@ def load_character_data():
                 description = data.get("description", "")
                 pose = data.get("pose", "")
                 age = data.get("age", "")
+                thinking_about = data.get("thinking_about", "")
+
         except Exception as e:
             print("Error loading character data:", e)
     else:
@@ -444,10 +450,11 @@ def load_character_data():
         description = ""
         pose = ""
         age = ""
+        thinking_about = ""
 
 
 def save_character_data(new_data):
-    global character_profile_changes, persona, mood, outfit, char_location, inventory, character_name, description, pose, age, emptyhanded
+    global character_profile_changes, persona, mood, outfit, char_location, inventory, character_name, description, pose, age, emptyhanded, thinking_about
     # Build update block FIRST
     changes = []
     if "persona" in new_data:
@@ -470,8 +477,17 @@ def save_character_data(new_data):
                 emptyhanded = True
     if "pose" in new_data:
         changes.append(f"new pose is: {new_data['pose']}")
+    if "thinking_about" in new_data:
+        changes.append(
+            f"{character_name} Internal thinking state updated: {new_data['thinking_about']}.")
 
-    character_profile_changes = "\n".join(changes) if changes else ""
+    # character_profile_changes = "\n".join(changes)
+    if changes:
+        print("There are changes!")
+        character_profile_changes = "\n".join(changes)
+        print(character_profile_changes)
+    else:
+        character_profile_changes = ""
 
     # ⭐ NOW SAVE UPDATED CHARACTER DATA TO DISK
     data = {
@@ -482,7 +498,8 @@ def save_character_data(new_data):
         "inventory": inventory,
         "description": description,
         "pose": pose,
-        "age": age
+        "age": age,
+        "thinking_about": thinking_about
     }
 
     filename = f"{character_name}.json"
@@ -616,10 +633,10 @@ def clean_history_for_prompt(history: str) -> str:
         # Otherwise skip short lines
 
     # ⭐ Real newlines for debug file
-    # debug_output = "\n".join(final_lines)
+    debug_output = "\n".join(final_lines)
 
-    # with open("character_test_clean_history.json", "w", encoding="utf-8") as f:
-    #    f.write(debug_output)
+    with open("character_test_clean_history.json", "w", encoding="utf-8") as f:
+        f.write(debug_output)
 
     # ⭐ Literal newlines for the model (correct)
     cleaned_for_model = "\n".join(final_lines)
@@ -630,7 +647,7 @@ def clean_history_for_prompt(history: str) -> str:
 # Chat logic
 # ---------------------------------------------------------
 def send_message(user_input):
-    global history, character_name, persona, character_profile_changes, reply_mode, TTS_mode
+    global history, character_name, persona, character_profile_changes, reply_mode, TTS_mode, thinking_about
     # ⭐ If reply mode is OFF → do not generate AI replies
     if not reply_mode:
         print("not in reply mode... start the test now")
@@ -691,6 +708,8 @@ def send_message(user_input):
         history += f"{character_name}: {text}\n"
         history += f"{character_name}: [AUDIO:{filename}]\n"
         save_history()
+        # new memory line added
+        add_user_line(text)
 
         return {
             "type": "audio_text" if "with_text" in TTS_mode else "audio",
@@ -709,7 +728,8 @@ def send_message(user_input):
         history += f"User: {text}\n"
         history += f"User: [AUDIO:{filename}]\n"
         save_history()
-
+        # new memory line added
+        add_user_line(text)
         return {
             "type": "audio_text" if "with_text" in TTS_mode else "audio",
             "filename": filename,
@@ -721,6 +741,8 @@ def send_message(user_input):
     # 3. Normal user text (not SAID)
     # ---------------------------------------------------------
     history += f"User: {user_input}\n"
+    # new memory line added
+    add_user_line(user_input)
 
     # Automatic user TTS only in these modes
     if TTS_mode in ["everybody_talking", "everybody_talking_with_text"]:
@@ -745,6 +767,13 @@ def send_message(user_input):
     # ---------------------------------------------------------
     # 5. Prepare history for character reply
     # ---------------------------------------------------------
+    # history += f"{character_name}: "
+
+    # ---------------------------------------------------------
+# 5. Prepare history for character reply
+# ---------------------------------------------------------
+
+     # Always end with reply cue
     history += f"{character_name}: "
 
     # ---------------------------------------------------------
@@ -762,10 +791,15 @@ def send_message(user_input):
     else:
         prompt = persona + "\n" + cleaned_history
 
+    print("Saving prompt here...")
+    with open("real_prompt.json", "w", encoding="utf-8") as f:
+        json.dump({
+            "prompt": prompt
+        }, f, indent=2)
     payload = {
         "prompt": prompt,
         "max_length": 200,
-        "temperature": 0.6,
+        "temperature": 0.9,
         "top_p": 0.7,
         "stop_sequence": ["User:", f"{character_name}:"]
     }
@@ -792,6 +826,8 @@ def send_message(user_input):
         history += reply
 
     save_history()
+    # new memory line added
+    add_character_line(character_name, reply)
 
     # ---------------------------------------------------------
     # 8. Character TTS (combined logic)
@@ -940,7 +976,7 @@ def get_history():
 
 @app.post("/character/select")
 def select_character(req: dict):
-    global character_name, history, mood, outfit, char_location, inventory, description, pose, age
+    global character_name, history, mood, outfit, char_location, inventory, description, pose, age, thinking_about
 
     new_name = req.get("name")
     if not new_name:
@@ -961,7 +997,8 @@ def select_character(req: dict):
         "inventory": inventory,
         "description": description,
         "pose": pose,
-        "age": age
+        "age": age,
+        "thinking_about": thinking_about
     }
 
 
@@ -979,9 +1016,15 @@ def refresh_character(data: dict):
     return {"ok": True, "character": character_name}
 
 
+@app.post("/update_tts_mode")
+def get_New_TTS_mode(req: dict):
+    global TTS_mode, TEST_MODE_AUDIO
+    TTS_mode = "none" if TEST_MODE_AUDIO else req.get("new_tts_mode")
+
+
 @app.post("/character/update")
 def update_character(req: dict):
-    global persona, mood, outfit, char_location, inventory, character_name, description, pose, age
+    global persona, mood, outfit, char_location, inventory, character_name, description, pose, age, thinking_about
     new_data = {}
 
     # Detect changes
@@ -1064,7 +1107,14 @@ def update_character(req: dict):
             new_age = raw_age
     else:
         new_age = age
-    # Test area.
+    # Test area..---thoughts----
+    raw_thoughts = req.get("thinking_about", thinking_about)
+
+    if raw_thoughts != thinking_about:
+        new_thought = raw_thoughts
+        new_data["thinking_about"] = new_thought
+    else:
+        new_thought = thinking_about
 
     # ⭐ FIX: Update globals FIRST
     persona = new_persona
@@ -1075,6 +1125,7 @@ def update_character(req: dict):
     description = new_description
     pose = new_pose
     age = new_age
+    thinking_about = new_thought
     # ⭐ THEN save to JSON
     if new_data:
         save_character_data(new_data)

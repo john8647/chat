@@ -62,6 +62,9 @@
             <label>Age</label>
             <input id="profileAge" />
 
+            <label>Is thinking about</label>
+            <input id="profileThinking_about" />
+
             <button onclick="saveProfile()">Save</button>
             <button onclick="closeProfile()">Close</button>
           </div>
@@ -85,6 +88,18 @@
       <input id="audio-url-input" type="text" placeholder="Cloudflare URL" />
       <input type="checkbox" id="reply_mode" checked />
       <label for="reply_mode">Responses are On?</label>
+      <label for="tts-mode">TTS Mode:</label>
+      <select name="TTS_mode" id="tts-mode">
+        <option value="none">None</option>
+        <option value="character_only">Character Only</option>
+        <option value="everybody_talking">Everybody Talking</option>
+        <option value="character_only_with_text">
+          Character Only with Text
+        </option>
+        <option value="everybody_talking_with_text">
+          Everybody Talking with Text
+        </option>
+      </select>
       <button id="save-options-btn">Save</button>
       <button id="close-options" onclick="closeGlobalOptions()">Close</button>
     </div>
