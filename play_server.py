@@ -151,7 +151,7 @@ def comfyui_alive_audio():
 
 def generate_audio(dialog_script, user):
     global character_name, voices
-    print("Test area")
+
     r = requests.get(f"{AUDIO_GEN_SERVER_URL}/history", timeout=5)
     t = f"{AUDIO_GEN_SERVER_URL}/history"
     print(t)
@@ -170,7 +170,10 @@ def generate_audio(dialog_script, user):
         workflow["3"]["inputs"]["audio"] = "a-male-voice_A.mp3"
     else:
         # 2. Character speaking → look up voice
-        voice_file = voices.get(character_name)
+        if user == 'Narrator':
+            voice_file = "a-male-voice-br-go.mp3"
+        else:
+            voice_file = voices.get(character_name)
 
         if voice_file:
             # Known character → use mapped voice
@@ -723,8 +726,10 @@ def send_message(user_input):
     # ---------------------------------------------------------
     if lower.startswith("said ") and len(parts) == 2:
         text = parts[1].strip()
-        filename = generate_audio(text, "User")
-
+        if text.count("*") >= 2:
+            filename = generate_audio(text.replace("*", ""), "Narrator")
+        else:
+            filename = generate_audio(text, "User")
         history += f"User: {text}\n"
         history += f"User: [AUDIO:{filename}]\n"
         save_history()
@@ -929,17 +934,8 @@ class AudioUrlUpdate(BaseModel):
 @app.post("/update_audio_url")
 def update_audio_url(data: AudioUrlUpdate):
     global AUDIO_GEN_SERVER_URL
-    global TTS_mode
-
     AUDIO_GEN_SERVER_URL = data.audio_url.strip()
     evaluate_test_mode()
-
-    # Set TTS mode based on whether URL is present
-    if len(AUDIO_GEN_SERVER_URL) > 0:
-        TTS_mode = "character_only"
-    else:
-        TTS_mode = "none"
-
     return {"ok": True}
 
 
@@ -1018,8 +1014,10 @@ def refresh_character(data: dict):
 
 @app.post("/update_tts_mode")
 def get_New_TTS_mode(req: dict):
-    global TTS_mode, TEST_MODE_AUDIO
-    TTS_mode = "none" if TEST_MODE_AUDIO else req.get("new_tts_mode")
+    global TTS_mode
+    TTS_mode = req.get("new_tts_mode")
+    print(f"new_tts_mode set ={TTS_mode}")
+    return {"ok": True, "tts_mode": TTS_mode}
 
 
 @app.post("/character/update")
@@ -1165,7 +1163,8 @@ async def direct_character_say(data: dict):
 
     if not character or not text:
         return {"ok": False, "error": "Missing character or text"}
-
+    print("Triggered in Direct Say")
+    print(f"TTS mode is in mode {TTS_mode}")
     # ---------------------------------------------------------
     # If TTS mode is active → use SAY command through send_message
     # ---------------------------------------------------------

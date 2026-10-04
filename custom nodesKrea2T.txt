@@ -1,5 +1,5 @@
 ##Vast.ai with ComfyUI template
-
+##with no need of manager
 import os
 import subprocess
 
@@ -9,8 +9,7 @@ nodes = {
     "ComfyUI-KJNodes": "https://github.com/kijai/ComfyUI-KJNodes",
     "comfyui-krea2edit": "https://github.com/lbouaraba/comfyui-krea2edit",
     "ComfyUI-Krea2T-Enhancer": "https://github.com/capitan01R/ComfyUI-Krea2T-Enhancer",
-    "ComfyUI-Manager": "https://github.com/ltdrdata/ComfyUI-Manager",
-    "RES4LYF": "https://github.com/bozoyan/comfyui_RES4LYF",
+    "RES4LYF": "https://github.com/ClownsharkBatwing/RES4LYF",
     "rgthree-comfy": "https://github.com/rgthree/rgthree-comfy"
 }
 
@@ -34,4 +33,5 @@ for folder, repo in nodes.items():
     else:
         print(f"⚠ No requirements.txt for {folder}")
 
+#!pip install -r "/workspace/ComfyUI/custom_nodes/RES4LYF/requirements.txt"
 print("✅ All nodes processed.")

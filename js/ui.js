@@ -13,6 +13,7 @@ let IMAGE_GEN_SERVER_URL = "";
 let AUDIO_GEN_SERVER_URL = "";
 let TEST_MODE = true;
 let replyMode = true;
+
 const modal = document.getElementById("global-options-modal");
 const btn = document.getElementById("global-options-btn");
 const closeBtn = document.getElementById("close-options");
@@ -96,7 +97,7 @@ document.getElementById("save-options-btn").onclick = async () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ new_tts_mode: tts_mode })
     });
-    
+    window.tts_mode_js = tts_mode;
     // 6. Close modal immediately — no ping tests
     document.getElementById("global-options-modal").classList.add("hidden");
 };

@@ -1,3 +1,5 @@
+const mode = window.tts_mode_js;
+
 
 async function loadCharacterName() {
     const res = await fetch("http://192.168.0.121:8000/active_character");
@@ -281,7 +283,8 @@ function hideTyping() {
 
 
 async function sendMessage() {
-    const text = input.value.trim();
+    let text = input.value.trim();
+    input.value = "";
     if (!text) return;
 
     const firstLetter = characterName[0].toLowerCase();
@@ -306,7 +309,7 @@ async function sendMessage() {
         console.log("Reply received:", data.reply);
         handleReply(data.reply);
 
-        input.value = "";
+        
         return;
     }
 
@@ -318,7 +321,7 @@ async function sendMessage() {
         spaceParts.length === 2;
 
     if (isImageCommand) {
-        appendBubble(text, "you");
+        //appendBubble(text, "you");
         //console.log("HERE! 0")
         const res = await fetch("/play", {
             method: "POST",
@@ -331,7 +334,7 @@ async function sendMessage() {
         // ⭐ Always show image result even if replyMode = OFF
         appendImageBubble(data.reply.filename, data.reply.caption);
 
-        input.value = "";
+        //input.value = "";
         return;
     }
     //console.log(text)
@@ -344,7 +347,7 @@ async function sendMessage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: text })
         });
-        input.value = "";
+        //input.value = "";
         const data = await res.json();
 
         appendImageBubble(data.reply.filename, data.reply.caption);
@@ -361,7 +364,7 @@ async function sendMessage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: text })
         });
-        input.value = "";
+        //input.value = "";
         const data = await res.json();
 
         
@@ -390,7 +393,7 @@ async function sendMessage() {
         // ⭐ Always show audio result even if replyMode = OFF
         appendAudioBubble(data.reply.filename, data.reply.caption);
 
-        input.value = "";
+        //input.value = "";
         return;
     }
 
@@ -408,7 +411,7 @@ async function sendMessage() {
     // ⭐ Always show audio result even if replyMode = OFF
     appendAudioBubble(data.reply.filename, data.reply.caption);
 
-    input.value = "";
+    //input.value = "";
     return;
     }
     
@@ -425,21 +428,48 @@ async function sendMessage() {
         // ⭐ Always show audio result for user (you)
         appendAudioBubble(data.reply.filename, data.reply.caption, 'you');
         
-        input.value = "";
+        //input.value = "";
         return;
     }
     // ⭐ Normal user bubble
-    if (text.toLowerCase() != "show") 
-    {
+    if (
+        text.toLowerCase() !== "show" &&
+        window.tts_mode_js !== "everybody_talking"
+    ) {
         appendBubble(text, "you");
     }
         
-    input.value = "";
-    
+    //input.value = "";
+    if (
+        window.tts_mode_js === "everybody_talking" ||
+        window.tts_mode_js === "everybody_talking_with_text"
+    ){
+        text = "said " + text; //line 446
+        console.log("all talk modes.");
+        console.log(text)
+    }
+
+    if (text.toLowerCase().startsWith("said ") && AUDIO_GEN_SERVER_URL.length > 1) {    
+        console.log("HERE! 10")
+        const res = await fetch("/play", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+
+        const data = await res.json();
+
+        // ⭐ Always show audio result for user (you)
+        appendAudioBubble(data.reply.filename, data.reply.caption, 'you');
+        
+        
+        return;
+    }    
+
     // ⭐ If reply mode OFF → stop here (commands already handled)
     if (!replyMode) {
         //console.log("Reply mode OFF — skipping AI reply.");
-        console.log("In not reply mode1")
+        
         const res = await fetch("/play", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
