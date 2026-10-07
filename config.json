@@ -1,0 +1,8 @@
+[
+    {
+        "SERVER_URL": "",
+        "IMAGE_GEN_SERVER_URL": "",
+        "AUDIO_GEN_SERVER_URL": "https://cocoa-cope-imminent.ngrok-free.dev",
+        "MOUNT_DIR": "G:/images"
+    }
+]
