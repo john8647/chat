@@ -20,10 +20,20 @@ reply_mode = True
 TEST_MODE = True
 TEST_MODE_IMAGE = True
 TEST_MODE_AUDIO = True
-SERVER_URL = ""
-IMAGE_GEN_SERVER_URL = ""
-AUDIO_GEN_SERVER_URL = ""
+# SERVER_URL = ""
+# IMAGE_GEN_SERVER_URL = ""
+# AUDIO_GEN_SERVER_URL = ""
+
 TTS_mode = "none"  # default mode when no TTS mode not set.
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+
+with open(CONFIG_PATH, "r") as f:
+    config = json.load(f)[0]  # because your JSON is a list with one object
+
+SERVER_URL = config["SERVER_URL"]
+IMAGE_GEN_SERVER_URL = config["IMAGE_GEN_SERVER_URL"]
+AUDIO_GEN_SERVER_URL = config["AUDIO_GEN_SERVER_URL"]
+MOUNT_DIR = config["MOUNT_DIR"]
 # when the character replies we should get Audio only not their text as words in the UI.
 # TTS_mode = "character_only"
 # when the character replies we should get Audio only not their text as words in the UI.
@@ -281,7 +291,7 @@ def generate_audio(dialog_script, user):
     ).content
 
     # print("Audio file on he way: 3")
-    AUDIO_OUTPUT_DIR = os.path.join("G:/images", "audio")
+    AUDIO_OUTPUT_DIR = os.path.join(MOUNT_DIR, "audio")
     os.makedirs(AUDIO_OUTPUT_DIR, exist_ok=True)
     safe_filename = os.path.basename(audio_filename)
     save_path = os.path.join(AUDIO_OUTPUT_DIR, safe_filename)
@@ -372,7 +382,7 @@ def generate_image(prompt):
     img_data = requests.get(
         f"{IMAGE_GEN_SERVER_URL}/view?filename={filename}").content
 
-    IMAGE_OUTPUT_DIR = "G:/images"
+    IMAGE_OUTPUT_DIR = MOUNT_DIR
     os.makedirs(IMAGE_OUTPUT_DIR, exist_ok=True)
     save_path = os.path.join(IMAGE_OUTPUT_DIR, filename)
 
@@ -876,7 +886,7 @@ app.add_middleware(
 )
 
 # ⭐ Static mount BEFORE routes
-app.mount("/images", StaticFiles(directory="G:/images"), name="images")
+app.mount("/images", StaticFiles(directory=MOUNT_DIR), name="images")
 
 # ---------------------------------------------------------
 # Routes
@@ -1201,6 +1211,17 @@ async def direct_character_say(data: dict):
 @app.get("/")
 def root():
     return {"status": "Python game server running"}
+
+
+# expose the loaded configs from top
+@app.get("/config")
+def get_config():
+    return {
+        "SERVER_URL": SERVER_URL,
+        "IMAGE_GEN_SERVER_URL": IMAGE_GEN_SERVER_URL,
+        "AUDIO_GEN_SERVER_URL": AUDIO_GEN_SERVER_URL,
+        "MOUNT_DIR": MOUNT_DIR
+    }
 
 
 # ---------------------------------------------------------

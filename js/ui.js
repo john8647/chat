@@ -139,3 +139,17 @@ fetch("http://192.168.0.121:8000/update_server_url", {
     body: JSON.stringify({ server_url: SERVER_URL })
 });
 
+
+async function loadConfigIntoUI() {
+    const res = await fetch("http://192.168.0.121:8000/config");
+    const cfg = await res.json();
+
+    document.getElementById("server-url-input").value = cfg.SERVER_URL;
+    document.getElementById("image-url-input").value = cfg.IMAGE_GEN_SERVER_URL;
+    document.getElementById("audio-url-input").value = cfg.AUDIO_GEN_SERVER_URL;
+}
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadConfigIntoUI();
+});
