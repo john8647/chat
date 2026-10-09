@@ -1,3 +1,4 @@
+//console.log("history.js loaded here.")
 async function fetchHistory() {
     const res = await fetch("/history");
     const data = await res.json();

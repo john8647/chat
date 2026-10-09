@@ -1,3 +1,4 @@
+//console.log("profile.js loaded here.")
 function openProfile() {
     const panel = document.getElementById("profilePanel");
         // Update profile fields

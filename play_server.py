@@ -1141,11 +1141,6 @@ def update_character(req: dict):
     return {"status": "ok"}
 
 
-@app.get("/favicon.ico")
-def favicon():
-    return {}
-
-
 @app.get("/character")
 def get_character():
     return {"name": character_name}

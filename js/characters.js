@@ -1,3 +1,5 @@
+//console.log("character.js loaded here.")
+window.character_image = "Jimmy";
 
 
 async function loadCharacters() {
@@ -23,11 +25,12 @@ async function loadCharacters() {
         const item = document.createElement("div");
         item.className = `character-item${index === 0 ? " active" : ""}`;
         item.dataset.name = character.name;
-        item.addEventListener("click", () => selectCharacter(character.name, item));
-
+        item.dataset.image = character.image;   
+        //console.log(character.image)
+        item.addEventListener("click", () => selectCharacter(character.name, item, character.image));
         const avatar = document.createElement("div");
         avatar.className = "avatar";
-        avatar.style.backgroundImage = `url("http://192.168.0.121:8000/images/${character.image || character.name}.png")`;
+        avatar.style.backgroundImage = `url("http://192.168.0.121:8000/images/${character.image}.png")`;
         avatar.style.backgroundSize = "cover";
 
         const name = document.createElement("div");
@@ -40,7 +43,7 @@ async function loadCharacters() {
 
     const firstItem = characterList.querySelector(".character-item");
     if (firstItem) {
-        await selectCharacter(firstItem.dataset.name, firstItem);
+        await selectCharacter(firstItem.dataset.name, firstItem, firstItem.dataset.image);
     }
 }
 
@@ -51,13 +54,16 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-async function selectCharacter(name, element) {
+// Default character before any selection happens
+
+async function selectCharacter(name, element, image) {
     if (!name) {
     name = "Jimmy";
+    window.character_image =  "Jimmy1"   
     }
+    window.character_image = image    
     characterName = name;
     updateHeader();
-
 
     // Sidebar highlight
     document.querySelectorAll(".character-item").forEach(item => {

@@ -1,6 +1,5 @@
 const mode = window.tts_mode_js;
 
-
 async function loadCharacterName() {
     const res = await fetch("http://192.168.0.121:8000/active_character");
     const data = await res.json();
@@ -44,12 +43,13 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 
 function appendImageBubble(filename, caption) {
+    const character_image = window.character_image;
     const row = document.createElement("div");
     row.className = "message-row message-left";
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src =  "http://192.168.0.121:8000/images/" + characterName + ".png";
+    avatar.src =  "http://192.168.0.121:8000/images/" + character_image + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "image-bubble";
@@ -76,10 +76,10 @@ function appendImageBubble(filename, caption) {
     chat.appendChild(row);
     chat.scrollTop = chat.scrollHeight;
 }
-
+ 
 function appendAudioBubble(filename, caption, who) {
-    console.log("Append audio bubble called! 1")
-
+    //console.log("Append audio bubble called! 1")
+    const character_image = window.character_image;
 
     // ⭐  Audio bubble creation split here
     const row = document.createElement("div");
@@ -87,7 +87,7 @@ function appendAudioBubble(filename, caption, who) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/you.png" : "http://192.168.0.121:8000/images/" + characterName + ".png";
+    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/characters/you.png" : "http://192.168.0.121:8000/images/" + character_image + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "chat-bubble " + (who === "you" ? "audio-bubble-right" : "audio-bubble");
@@ -128,7 +128,7 @@ function appendAudioBubble(filename, caption, who) {
 
 function appendBubble(text, who) {
     console.log("Beginning speak 1")
-
+    const character_image = window.character_image;
     // ⭐ If this is an image marker, redirect to appendImageBubble
     if (text.includes("[IMAGE:")) {
         const match = text.match(/\[IMAGE:(.+?)\]/);
@@ -154,7 +154,7 @@ function appendBubble(text, who) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/you.png" : "http://192.168.0.121:8000/images/" + characterName + ".png";
+    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/characters/you.png" : "http://192.168.0.121:8000/images/" + character_image + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "message-bubble " + (who === "you" ? "message-right" : "message-left");
@@ -201,13 +201,13 @@ function showTyping() {
 }
 
 function appendBubble(text, who) {
-    
+    const character_image = window.character_image;
     const row = document.createElement("div");
     row.className = "message-row " + (who === "you" ? "message-right" : "message-left");
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/you.png" : "http://192.168.0.121:8000/images/" + characterName + ".png";
+    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/characters/you.png" : "http://192.168.0.121:8000/images/" + character_image + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "message-bubble " + (who === "you" ? "message-right" : "message-left");

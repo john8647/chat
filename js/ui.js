@@ -1,3 +1,4 @@
+//console.log("ui.js loaded here.")
 // Global state
 let characterName = "Jimmy";
 let persona = "";
@@ -14,17 +15,26 @@ let AUDIO_GEN_SERVER_URL = "";
 let TEST_MODE = true;
 let replyMode = true;
 
+
 const modal = document.getElementById("global-options-modal");
 const btn = document.getElementById("global-options-btn");
 const closeBtn = document.getElementById("close-options");
 
 
 
+
+
+
 function updateHeader() {
+    const img = window.character_image;
+    const url = `http://192.168.0.121:8000/images/${img}.png`;
+    //console.log("updateHeader sees:", img);
+    //console.log("Avatar URL:", url);
     document.getElementById("chatHeaderName").textContent = characterName;
-    document.getElementById("chatHeaderAvatar").style.backgroundImage =
-        `url('http://192.168.0.121:8000/images/${characterName.toLowerCase()}.png')`;
+    document.getElementById("chatHeaderAvatar").style.backgroundImage = `url('${url}')`;
 }
+
+
 
 function setStatus(text) {
     document.getElementById("chatHeaderStatus").textContent = text;

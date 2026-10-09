@@ -1,14 +1,14 @@
 [
     {
         "name": "Jimmy",
-        "image": "Jimmy"
+        "image": "/characters/Jimmy1"
     },
     {
         "name": "Leah",
-        "image": "Leah"
+        "image": "/characters/Leah"
     },
     {
         "name": "Chloe",
-        "image": "Chloe"
+        "image": "/characters/Chloe"
     } 
 ]

@@ -4,13 +4,16 @@
     <meta charset="UTF-8" />
     <title>Game</title>
     <link rel="stylesheet" href="/resources/styles.css" />
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
   </head>
   <body>
     <div class="app">
       <!-- Sidebar -->
       <div class="sidebar">
         <div class="sidebar-header">
-          <h2>Chat Game</h2>
+          <h2>WhatsApp</h2>
           <button id="global-options-btn" onclick="openGlobalOptions()">
             ⋮
           </button>
@@ -109,11 +112,14 @@
       <img id="image-modal-img" />
     </div>
 
+    <script>
+      window.character_image = "Jimmy1";
+    </script>
     <!-- Modular JavaScript -->
-    <script src="/js/ui.js"></script>
-    <script src="/js/characters.js"></script>
-    <script src="/js/history.js"></script>
     <script src="/js/chat.js"></script>
+    <script src="/js/history.js"></script>
+    <script src="/js/characters.js"></script>
+    <script src="/js/ui.js"></script>
     <script src="/js/profile.js"></script>
   </body>
 </html>
