@@ -1,4 +1,34 @@
 const mode = window.tts_mode_js;
+const ws = new WebSocket("ws://192.168.0.121:8000/ws");
+
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    // Direct speech
+    if (data.type === "direct_say" && characterName === data.character) {
+        appendBubble(data.text, data.character);
+        return;
+    }
+
+    // Direct command (remote-triggered chat)
+    if (data.type === "direct_command" && characterName === data.character) {
+
+        // IMAGE reply
+        if (data.reply && data.reply.type === "image") {
+            appendImageBubble(data.reply.filename, data.reply.caption);
+            return;
+        }
+
+        // TEXT reply
+        handleReply(data.reply);
+    }
+};
+
+
+
+ 
+ 
+
 
 async function loadCharacterName() {
     const res = await fetch("http://192.168.0.121:8000/active_character");
@@ -306,7 +336,7 @@ async function sendMessage() {
 
         const data = await res.json();
 
-        console.log("Reply received:", data.reply);
+        console.log("received:", data.reply);
         handleReply(data.reply);
 
         

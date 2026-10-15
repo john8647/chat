@@ -10,5 +10,9 @@
     {
         "name": "Chloe",
         "image": "/characters/Chloe"
+    },
+    {
+	"name": "Smarsiga",
+	"image": "/characters/Smarsiga_f1"
     } 
 ]

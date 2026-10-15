@@ -71,6 +71,10 @@ app.post("/character/select", async (req, res) => {
 });
 
 
+
+
+
+
 // ⭐ Start Node server
 app.listen(3000, () => {
     console.log("Server running on http://192.168.0.121:3000");

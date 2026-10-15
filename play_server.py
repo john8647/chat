@@ -1,3 +1,4 @@
+from fastapi import WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
@@ -891,6 +892,67 @@ app.mount("/images", StaticFiles(directory=MOUNT_DIR), name="images")
 # ---------------------------------------------------------
 # Routes
 # ---------------------------------------------------------
+clients = []
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await ws.accept()
+    clients.append(ws)
+    try:
+        while True:
+            await ws.receive_text()  # optional
+    except:
+        clients.remove(ws)
+
+
+async def broadcast_direct_say(character, text):
+    dead = []
+    for ws in clients:
+        try:
+            await ws.send_json({
+                "type": "direct_say",
+                "character": character,
+                "text": text
+            })
+        except:
+            dead.append(ws)
+
+    for ws in dead:
+        clients.remove(ws)
+
+
+@app.post("/direct_command")
+async def direct_command(data: dict):
+    command = data.get("command")
+    character = data.get("character")
+
+    print(f"[DIRECT COMMAND] {character}: {command}")
+
+    # Trigger your existing send_message() logic
+    reply = send_message(command)
+
+    # Push to browser
+    await broadcast_direct_command(character, command, reply)
+
+    return {"ok": True}
+
+
+async def broadcast_direct_command(character, command, reply):
+    dead = []
+    for ws in clients:
+        try:
+            await ws.send_json({
+                "type": "direct_command",
+                "character": character,
+                "command": command,
+                "reply": reply
+            })
+        except:
+            dead.append(ws)
+
+    for ws in dead:
+        clients.remove(ws)
 
 
 class ServerUrlUpdate(BaseModel):
@@ -1191,8 +1253,9 @@ async def direct_character_say(data: dict):
     with open(history_filename(), "w", encoding="utf-8") as f:
         json.dump({"history": history}, f, indent=2)
 
-    print(f"[DIRECT] {character}: {text}")
-
+    print(f"[DIRECT SAY DETECTED from API] {character}: {text}")
+    # PUSH to browser
+    await broadcast_direct_say(character, text)
     # IMPORTANT: return in the same format as send_message()
     return {
         "reply": {
