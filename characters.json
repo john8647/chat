@@ -8,11 +8,23 @@
         "image": "/characters/Leah"
     },
     {
+        "name": "Layla",
+        "image": "/characters/Layla"
+    },
+    {
+        "name": "Alana",
+        "image": "/characters/Alana"
+    },
+    {
+        "name": "Koti",
+        "image": "/characters/Koti"
+    },
+    {
         "name": "Chloe",
         "image": "/characters/Chloe"
     },
     {
-	"name": "Smarsiga",
-	"image": "/characters/Smarsiga_f1"
+        "name": "Smarsiga",
+        "image": "/characters/Smarsiga_f1"
     } 
 ]

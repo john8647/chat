@@ -5,13 +5,38 @@ ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
     // Direct speech
-    if (data.type === "direct_say" && characterName === data.character) {
-        appendBubble(data.text, data.character);
+    if (data.type === "direct_say" && characterName === data.character && data.source === "api") {
+        const reply = data.reply;
+
+        if (!reply) {
+            // legacy fallback
+            appendBubble(data.text, data.character);
+            return;
+        }
+
+        switch (reply.type) {
+            case "text":
+                appendBubble(reply.text, data.character);
+                break;
+
+            case "audio":
+                appendAudioBubble(reply.filename, reply.caption, data.character);
+                break;
+
+            case "image":
+                appendImageBubble(reply.filename, reply.caption);
+                break;
+
+            default:
+                handleReply(reply);
+                break;
+        }
+
         return;
     }
 
     // Direct command (remote-triggered chat)
-    if (data.type === "direct_command" && characterName === data.character) {
+    if (data.type === "direct_command" && characterName === data.character && data.source === "api") {
 
         // IMAGE reply
         if (data.reply && data.reply.type === "image") {

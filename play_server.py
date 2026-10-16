@@ -97,16 +97,18 @@ character_profile_changes = ""
 lora = {
     "Alana": "Alana_f1",
     "Chloe": "Chloe_f5",
-    "Layla": "chloe_f0",
+    "Layla": "Chloe_f0",
     "Leah": "Leah_f1",
-    "Koti": "Koti_f3"
+    "Koti": "Koti_f3",
+    "Smarsiga": "Smarsiga_f1"
 }
 voices = {
-    "Leah": "a-female-voice_B.mp3",
+    "Leah": "a-female-voice_L1.mp3",
     "Chloe": "a-female-voice_A1.mp3",
-    "Layla": "a-female-voice_D.mp3",
-    "Alana": "a-female-voice_A.mp3",
-    "Koti": "a-female-voice_D1.mp3"
+    "Layla": "a-female-voice_T.mp3",
+    "Alana": "a-female-voice_C.mp3",
+    "Koti": "a-female-voice_D1.mp3",
+    "Smarsiga": "a-female-voice_S.mp3"
 }
 # character
 persona = ""
@@ -550,7 +552,7 @@ def load_history():
         except Exception as e:
             print("Error loading history:", e)
     else:
-        history = "Conversation history:\n"
+        history = ""
 
 
 load_character_data()
@@ -906,14 +908,15 @@ async def websocket_endpoint(ws: WebSocket):
         clients.remove(ws)
 
 
-async def broadcast_direct_say(character, text):
+async def broadcast_direct_say(character, reply):
     dead = []
     for ws in clients:
         try:
             await ws.send_json({
                 "type": "direct_say",
                 "character": character,
-                "text": text
+                "reply": reply,
+                "source": "api"
             })
         except:
             dead.append(ws)
@@ -935,7 +938,13 @@ async def direct_command(data: dict):
     # Push to browser
     await broadcast_direct_command(character, command, reply)
 
-    return {"ok": True}
+    return {
+        "reply": {
+            "command": "Direct command",
+            "text": command,
+            "character": character
+        }
+    }
 
 
 async def broadcast_direct_command(character, command, reply):
@@ -946,7 +955,8 @@ async def broadcast_direct_command(character, command, reply):
                 "type": "direct_command",
                 "character": character,
                 "command": command,
-                "reply": reply
+                "reply": reply,
+                "source": "api"
             })
         except:
             dead.append(ws)
@@ -1230,8 +1240,10 @@ async def direct_character_say(data: dict):
 
     if not character or not text:
         return {"ok": False, "error": "Missing character or text"}
+
     print("Triggered in Direct Say")
     print(f"TTS mode is in mode {TTS_mode}")
+
     # ---------------------------------------------------------
     # If TTS mode is active → use SAY command through send_message
     # ---------------------------------------------------------
@@ -1243,6 +1255,10 @@ async def direct_character_say(data: dict):
     ]:
         dialog = "say " + text
         reply = send_message(dialog)
+
+        # PUSH full reply to browser
+        await broadcast_direct_say(character, reply)
+
         return {"reply": reply}
 
     # ---------------------------------------------------------
@@ -1254,16 +1270,18 @@ async def direct_character_say(data: dict):
         json.dump({"history": history}, f, indent=2)
 
     print(f"[DIRECT SAY DETECTED from API] {character}: {text}")
-    # PUSH to browser
-    await broadcast_direct_say(character, text)
-    # IMPORTANT: return in the same format as send_message()
-    return {
-        "reply": {
-            "type": "text",
-            "text": text,
-            "caption": f"{character} said"
-        }
+
+    # Create a proper reply object (same shape as send_message)
+    reply = {
+        "type": "text",
+        "text": text,
+        "caption": f"{character} said"
     }
+
+    # PUSH full reply to browser
+    await broadcast_direct_say(character, reply)
+
+    return {"reply": reply}
 
 
 @app.get("/")
