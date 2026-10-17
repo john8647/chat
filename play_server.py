@@ -103,11 +103,11 @@ lora = {
     "Smarsiga": "Smarsiga_f1"
 }
 voices = {
-    "Leah": "a-female-voice_L1.mp3",
+    "Leah": "a-female-voice_C.mp3",
     "Chloe": "a-female-voice_A1.mp3",
     "Layla": "a-female-voice_T.mp3",
-    "Alana": "a-female-voice_C.mp3",
-    "Koti": "a-female-voice_D1.mp3",
+    "Alana": "a-female-voice_C1.mp3",
+    "Koti": "a-female-voice_L1.mp3",
     "Smarsiga": "a-female-voice_S.mp3"
 }
 # character
@@ -915,8 +915,7 @@ async def broadcast_direct_say(character, reply):
             await ws.send_json({
                 "type": "direct_say",
                 "character": character,
-                "reply": reply,
-                "source": "api"
+                "reply": reply
             })
         except:
             dead.append(ws)
@@ -955,8 +954,7 @@ async def broadcast_direct_command(character, command, reply):
                 "type": "direct_command",
                 "character": character,
                 "command": command,
-                "reply": reply,
-                "source": "api"
+                "reply": reply
             })
         except:
             dead.append(ws)
@@ -1237,6 +1235,7 @@ async def direct_character_say(data: dict):
 
     character = data.get("character")
     text = data.get("text")
+    source = data.get("source", "api")  # default to api if not provided
 
     if not character or not text:
         return {"ok": False, "error": "Missing character or text"}
@@ -1257,6 +1256,7 @@ async def direct_character_say(data: dict):
         reply = send_message(dialog)
 
         # PUSH full reply to browser
+        print("TEST A!")
         await broadcast_direct_say(character, reply)
 
         return {"reply": reply}
@@ -1279,7 +1279,8 @@ async def direct_character_say(data: dict):
     }
 
     # PUSH full reply to browser
-    await broadcast_direct_say(character, reply)
+    if source == "api":
+        await broadcast_direct_say(character, reply)
 
     return {"reply": reply}
 

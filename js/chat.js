@@ -5,9 +5,9 @@ ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
     // Direct speech
-    if (data.type === "direct_say" && characterName === data.character && data.source === "api") {
+    if (data.type === "direct_say" && characterName === data.character) {
         const reply = data.reply;
-
+        console.log("Client detected a message via the API")
         if (!reply) {
             // legacy fallback
             appendBubble(data.text, data.character);
@@ -36,7 +36,7 @@ ws.onmessage = (event) => {
     }
 
     // Direct command (remote-triggered chat)
-    if (data.type === "direct_command" && characterName === data.character && data.source === "api") {
+    if (data.type === "direct_command" && characterName === data.character) {
 
         // IMAGE reply
         if (data.reply && data.reply.type === "image") {
@@ -355,7 +355,8 @@ async function sendMessage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 character: characterName,
-                text: directText
+                text: directText,
+                source: "ui"
             })
         });
 
