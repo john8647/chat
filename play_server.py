@@ -928,14 +928,16 @@ async def broadcast_direct_say(character, reply):
 async def direct_command(data: dict):
     command = data.get("command")
     character = data.get("character")
+    source = data.get("source", "ui")  # default to api if not provided
 
     print(f"[DIRECT COMMAND] {character}: {command}")
-
+    print(f"[API] {source}")
     # Trigger your existing send_message() logic
     reply = send_message(command)
 
     # Push to browser
-    await broadcast_direct_command(character, command, reply)
+    if source == "api":
+        await broadcast_direct_command(character, command, reply)
 
     return {
         "reply": {
@@ -947,6 +949,7 @@ async def direct_command(data: dict):
 
 
 async def broadcast_direct_command(character, command, reply):
+
     dead = []
     for ws in clients:
         try:

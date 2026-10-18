@@ -35,18 +35,31 @@ ws.onmessage = (event) => {
         return;
     }
 
-    // Direct command (remote-triggered chat)
-    if (data.type === "direct_command" && characterName === data.character) {
+// Direct command (remote-triggered chat)
+if (data.type === "direct_command" && characterName === data.character) {
 
-        // IMAGE reply
-        if (data.reply && data.reply.type === "image") {
-            appendImageBubble(data.reply.filename, data.reply.caption);
-            return;
-        }
+    const reply = data.reply;
+    const firstWord = data.command.split(" ")[0].toLowerCase();
+    const skipBubbleCommands = ["say", "said", "audio", "image", "view", "show"];
 
-        // TEXT reply
-        handleReply(data.reply);
+    // IMAGE reply
+    if (reply && reply.type === "image") {
+        appendImageBubble(reply.filename, reply.caption);
+        return;
     }
+
+    // Only show "you" bubble if command is NOT a TTS/image/show command
+    if (!skipBubbleCommands.includes(firstWord)) {
+        appendBubble(data.command, "you");
+    }
+
+    // Route reply normally
+    handleReply(reply);
+
+    return;
+}
+
+
 };
 
 
@@ -368,7 +381,7 @@ async function sendMessage() {
         
         return;
     }
-
+    
 
     // ⭐ Image command
     const spaceParts = text.split(" ");
@@ -428,13 +441,13 @@ async function sendMessage() {
         
         return;
     }
-
+    console.log("HERE! 0")
     // ⭐ Voice command
     //spaceParts = text.split(" ");
     const isVoiceCommand =
         spaceParts[0].toLowerCase() === "audio" &&
         spaceParts.length === 2;
-
+    console.log("HERE! 1")
     if (isVoiceCommand) {
         //appendBubble(text, "you");
         console.log("HERE! 8")
@@ -453,23 +466,32 @@ async function sendMessage() {
         return;
     }
 
+    bool1 = (AUDIO_GEN_SERVER_URL.length > 1)
+    bool2 = (text.toLowerCase().startsWith("say "))
+
+    console.log(bool1)
+    console.log(bool2)
+
     if (text.toLowerCase().startsWith("say ") && AUDIO_GEN_SERVER_URL.length > 1) {
-    //appendBubble(text, "you");
-    console.log("HERE! 9")
-    const res = await fetch("/play", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-    });
+        //appendBubble(text, "you");
+        console.log("HERE! 9")
+        const res = await fetch("/play", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
 
-    const data = await res.json();
+        const data = await res.json();
 
-    // ⭐ Always show audio result even if replyMode = OFF
-    appendAudioBubble(data.reply.filename, data.reply.caption);
+        // ⭐ Always show audio result even if replyMode = OFF
+        appendAudioBubble(data.reply.filename, data.reply.caption);
 
-    //input.value = "";
-    return;
+        //input.value = "";
+        return;
     }
+
+    console.log("HERE! 2")
+    console.log("HERE! say")
     
     if (text.toLowerCase().startsWith("said ") && AUDIO_GEN_SERVER_URL.length > 1) {    
         console.log("HERE! 10")

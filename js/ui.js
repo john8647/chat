@@ -22,6 +22,27 @@ const closeBtn = document.getElementById("close-options");
 
 
 
+async function loadConfigIntoUI() {
+    try {
+        const res = await fetch("http://192.168.0.121:8000/config");
+        const cfg = await res.json();
+
+        // Update JS globals
+        SERVER_URL = cfg.SERVER_URL;
+        IMAGE_GEN_SERVER_URL = cfg.IMAGE_GEN_SERVER_URL;
+        AUDIO_GEN_SERVER_URL = cfg.AUDIO_GEN_SERVER_URL;
+
+        // Update UI inputs
+        document.getElementById("server-url-input").value = SERVER_URL;
+        document.getElementById("image-url-input").value = IMAGE_GEN_SERVER_URL;
+        document.getElementById("audio-url-input").value = AUDIO_GEN_SERVER_URL;
+
+        console.log("Config loaded:", cfg);
+
+    } catch (err) {
+        console.error("Failed to load config:", err);
+    }
+}
 
 
 
@@ -150,15 +171,12 @@ fetch("http://192.168.0.121:8000/update_server_url", {
 });
 
 
-async function loadConfigIntoUI() {
-    const res = await fetch("http://192.168.0.121:8000/config");
-    const cfg = await res.json();
 
-    document.getElementById("server-url-input").value = cfg.SERVER_URL;
-    document.getElementById("image-url-input").value = cfg.IMAGE_GEN_SERVER_URL;
-    document.getElementById("audio-url-input").value = cfg.AUDIO_GEN_SERVER_URL;
-}
 
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadConfigIntoUI();
+});
 
 document.addEventListener("DOMContentLoaded", () => {
     loadConfigIntoUI();
