@@ -4,6 +4,19 @@ const ws = new WebSocket("ws://192.168.0.121:8000/ws");
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
+    // API-submitted user speech should enter the normal chat flow.
+    const speaker = typeof data.character === "string" ? data.character.trim().toLowerCase() : "";
+    if (data.type === "direct_say" && ["me", "user"].includes(speaker)) {
+        const text = data.reply && typeof data.reply.text === "string"
+            ? data.reply.text
+            : data.text;
+        if (typeof text === "string" && text.trim()) {
+            handleNormalChat({ type: "normal_chat", raw: text })
+                .catch((error) => console.error("Failed to process API user speech:", error));
+        }
+        return;
+    }
+
     // Direct speech
     if (data.type === "direct_say" && characterName === data.character) {
         const reply = data.reply;
@@ -63,8 +76,6 @@ if (data.type === "direct_command" && characterName === data.character) {
 };
 
 
-
- 
  
 
 
@@ -74,6 +85,7 @@ async function loadCharacterName() {
     characterName = data.character;
 }
 
+
 function handleReply(reply) {
 
     // Determine speaker
@@ -82,6 +94,11 @@ function handleReply(reply) {
     // Route by type
     if (reply.type === "text") {
         appendBubble(reply.text, who);
+        return;
+    }
+
+    if (reply.type === "image") {
+        appendImageBubble(reply.filename, reply.caption);
         return;
     }
 
@@ -102,6 +119,7 @@ function handleReply(reply) {
 
     console.warn("Unknown reply type:", reply);
 }
+
 
 
 
@@ -349,236 +367,121 @@ function hideTyping() {
     setStatus("Online");
 }
 
-
 async function sendMessage() {
     let text = input.value.trim();
-    input.value = "";
     if (!text) return;
+    input.value = "";
 
+    const parsed = classifyInput(text);
+
+    // ⭐ Route based on classification
+    if (parsed.type === "direct_speech") {
+        return await handleDirectSpeech(parsed);
+    }
+
+    if (parsed.type === "command") {
+        return await handleCommand(parsed);
+    }
+
+    return await handleNormalChat(parsed);
+}
+
+
+function classifyInput(text) {
     const firstLetter = characterName[0].toLowerCase();
-
-    // ⭐ Direct speech
     const colonParts = text.split(":");
+
+    // ⭐ Direct speech: "J: hello"
     if (colonParts.length > 1 && colonParts[0].trim().toLowerCase() === firstLetter) {
-
-        const directText = colonParts.slice(1).join(":").trim();
-
-        const res = await fetch("http://192.168.0.121:8000/direct_character_say", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                character: characterName,
-                text: directText,
-                source: "ui"
-            })
-        });
-
-        const data = await res.json();
-
-        console.log("received:", data.reply);
-        handleReply(data.reply);
-
-        
-        return;
-    }
-    
-
-    // ⭐ Image command
-    const spaceParts = text.split(" ");
-    const isImageCommand = 
-        spaceParts[0].toLowerCase() === "image" &&
-        spaceParts.length === 2;
-
-    if (isImageCommand) {
-        //appendBubble(text, "you");
-        //console.log("HERE! 0")
-        const res = await fetch("/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
-
-        const data = await res.json();
-
-        // ⭐ Always show image result even if replyMode = OFF
-        appendImageBubble(data.reply.filename, data.reply.caption);
-
-        //input.value = "";
-        return;
-    }
-    //console.log(text)
-    // ⭐ Show command
-    if (text.toLowerCase() === "show" && IMAGE_GEN_SERVER_URL.length > 1) {
-        //appendBubble(text, "you");
-        //console.log("HERE!")
-        const res = await fetch("/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
-        //input.value = "";
-        const data = await res.json();
-
-        appendImageBubble(data.reply.filename, data.reply.caption);
-
-        
-        return;
+        return {
+            type: "direct_speech",
+            args: colonParts.slice(1).join(":").trim(),
+            raw: text
+        };
     }
 
-    if (text.toLowerCase() === "view") {
-        //appendBubble(text, "you");
-        
-        const res = await fetch("/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
-        //input.value = "";
-        const data = await res.json();
+    // ⭐ Commands
+    const parts = text.split(" ");
+    const cmd = parts[0].toLowerCase();
 
-        
-        appendBubble(data, "you");
-        
-        return;
-    }
-    console.log("HERE! 0")
-    // ⭐ Voice command
-    //spaceParts = text.split(" ");
-    const isVoiceCommand =
-        spaceParts[0].toLowerCase() === "audio" &&
-        spaceParts.length === 2;
-    console.log("HERE! 1")
-    if (isVoiceCommand) {
-        //appendBubble(text, "you");
-        console.log("HERE! 8")
-        const res = await fetch("/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
-
-        const data = await res.json();
-
-        // ⭐ Always show audio result even if replyMode = OFF
-        appendAudioBubble(data.reply.filename, data.reply.caption);
-
-        //input.value = "";
-        return;
+    const commands = ["image", "audio", "say", "said", "show", "view"];
+    if (commands.includes(cmd)) {
+        return {
+            type: "command",
+            command: cmd,
+            args: parts.slice(1).join(" "),
+            raw: text
+        };
     }
 
-    bool1 = (AUDIO_GEN_SERVER_URL.length > 1)
-    bool2 = (text.toLowerCase().startsWith("say "))
+    // ⭐ Normal chat
+    return {
+        type: "normal_chat",
+        raw: text
+    };
+}
 
-    console.log(bool1)
-    console.log(bool2)
 
-    if (text.toLowerCase().startsWith("say ") && AUDIO_GEN_SERVER_URL.length > 1) {
-        //appendBubble(text, "you");
-        console.log("HERE! 9")
-        const res = await fetch("/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
+async function handleDirectSpeech(parsed) {
 
-        const data = await res.json();
-
-        // ⭐ Always show audio result even if replyMode = OFF
-        appendAudioBubble(data.reply.filename, data.reply.caption);
-
-        //input.value = "";
-        return;
+    // ⭐ If character = Me/User → treat as normal chat
+    if (["me", "user"].includes(characterName.toLowerCase())) {
+        return await handleNormalChat(parsed);
     }
 
-    console.log("HERE! 2")
-    console.log("HERE! say")
-    
-    if (text.toLowerCase().startsWith("said ") && AUDIO_GEN_SERVER_URL.length > 1) {    
-        console.log("HERE! 10")
-        const res = await fetch("/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
+    const res = await fetch("http://192.168.0.121:8000/direct_character_say", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            character: characterName,
+            text: parsed.args,
+            source: "ui"
+        })
+    });
+    const data = await res.json();
+    handleReplyObject(data);
+}
 
-        const data = await res.json();
 
-        // ⭐ Always show audio result for user (you)
-        appendAudioBubble(data.reply.filename, data.reply.caption, 'you');
-        
-        //input.value = "";
-        return;
-    }
-    // ⭐ Normal user bubble
-    if (
-        text.toLowerCase() !== "show" &&
-        window.tts_mode_js !== "everybody_talking"
-    ) {
-        appendBubble(text, "you");
-    }
-        
-    //input.value = "";
-    if (
-        window.tts_mode_js === "everybody_talking" ||
-        window.tts_mode_js === "everybody_talking_with_text"
-    ){
-        text = "said " + text; //line 446
-        console.log("all talk modes.");
-        console.log(text)
+async function handleCommand(parsed) {
+
+    // Skip showing "you" bubble for commands
+    const skipBubble = ["image", "audio", "say", "said", "show", "view"];
+    if (!skipBubble.includes(parsed.command)) {
+        appendBubble(parsed.raw, "you");
     }
 
-    if (text.toLowerCase().startsWith("said ") && AUDIO_GEN_SERVER_URL.length > 1) {    
-        console.log("HERE! 10")
-        const res = await fetch("/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
-
-        const data = await res.json();
-
-        // ⭐ Always show audio result for user (you)
-        appendAudioBubble(data.reply.filename, data.reply.caption, 'you');
-        
-        
-        return;
-    }    
-
-    // ⭐ If reply mode OFF → stop here (commands already handled)
-    if (!replyMode) {
-        //console.log("Reply mode OFF — skipping AI reply.");
-        
-        const res = await fetch("/play", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
-        //console.log("In not reply mode")
-        const data = await res.json();
-        return;
-    }
-
-    // ⭐ AI reply
-    showTyping();
-    
     const res = await fetch("/play", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: parsed.raw })
     });
 
     const data = await res.json();
-    //console.log("HERE!1234")
-    //console.log(data)
-    hideTyping();
+    handleReplyObject(data);
+    console.log("handle image")
+}
 
-    if (data.reply && data.reply.type === "image") {
-        appendImageBubble(data.reply.filename, data.reply.caption);
-    } else {
-        //appendBubble(data.reply, "character");
-        handleReply(data.reply);
 
-    }
+async function handleNormalChat(parsed) {
+
+    appendBubble(parsed.raw, "you");
+
+    const res = await fetch("/play", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: parsed.raw })
+    });
+
+    const data = await res.json();
+    handleReplyObject(data);
+}
+
+
+function handleReplyObject(data) {
+    if (data.user_reply) handleReply(data.user_reply);
+    if (data.character_reply) handleReply(data.character_reply);
+    if (data.reply) handleReply(data.reply);
 }
 
 

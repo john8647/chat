@@ -739,22 +739,25 @@ def send_message(user_input):
     # ---------------------------------------------------------
     if lower.startswith("said ") and len(parts) == 2:
         text = parts[1].strip()
+
+        # Generate user audio
         if text.count("*") >= 2:
             filename = generate_audio(text.replace("*", ""), "Narrator")
         else:
             filename = generate_audio(text, "User")
+
         history += f"User: {text}\n"
         history += f"User: [AUDIO:{filename}]\n"
         save_history()
-        # new memory line added
         add_user_line(text)
-        return {
+
+        # Build user reply object
+        user_reply = {
             "type": "audio_text" if "with_text" in TTS_mode else "audio",
             "filename": filename,
             "text": text if "with_text" in TTS_mode else None,
             "caption": "You said"
         }
-
     # ---------------------------------------------------------
     # 3. Normal user text (not SAID)
     # ---------------------------------------------------------
@@ -860,15 +863,21 @@ def send_message(user_input):
         "character_only_with_text",
         "everybody_talking_with_text"
     ]:
-        filename = generate_audio(reply, character_name)
+        filename1 = generate_audio(reply, character_name)
         history += f"{character_name}: [AUDIO:{filename}]\n"
         save_history()
 
-        return {
+        character_reply = {
             "type": "audio_text" if "with_text" in TTS_mode else "audio",
-            "filename": filename,
+            "filename": filename1,
             "text": reply if "with_text" in TTS_mode else None,
             "caption": f"{character_name} said"
+        }
+
+        # Return BOTH replies
+        return {
+            "user_reply": user_reply,
+            "character_reply": character_reply
         }
 
     # Fallback (should never happen)
@@ -910,6 +919,7 @@ async def websocket_endpoint(ws: WebSocket):
 
 async def broadcast_direct_say(character, reply):
     dead = []
+    print("dead here")
     for ws in clients:
         try:
             await ws.send_json({
@@ -1245,6 +1255,16 @@ async def direct_character_say(data: dict):
 
     print("Triggered in Direct Say")
     print(f"TTS mode is in mode {TTS_mode}")
+
+    # API user input is handed to the browser's normal chat flow.
+    if source == "api" and character.strip().lower() in {"me", "user"}:
+        reply = {
+            "type": "text",
+            "text": text,
+            "caption": "You said"
+        }
+        await broadcast_direct_say(character, reply)
+        return {"ok": True, "queued": True}
 
     # ---------------------------------------------------------
     # If TTS mode is active → use SAY command through send_message
