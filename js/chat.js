@@ -18,7 +18,7 @@ ws.onmessage = (event) => {
     }
 
     // Direct speech
-    if (data.type === "direct_say" && characterName === data.character) {
+    if (data.type === "direct_say" && (characterName === data.character || data.character === 'you')) {
         const reply = data.reply;
         console.log("Client detected a message via the API")
         if (!reply) {
@@ -33,7 +33,7 @@ ws.onmessage = (event) => {
                 break;
 
             case "audio":
-                appendAudioBubble(reply.filename, reply.caption, data.character);
+                appendAudioBubble(reply.filename, reply.caption, data.character, true);
                 break;
 
             case "image":
@@ -103,13 +103,13 @@ function handleReply(reply) {
     }
 
     if (reply.type === "audio") {
-        appendAudioBubble(reply.filename, reply.caption, who);
+        appendAudioBubble(reply.filename, reply.caption, who, true);
         return;
     }
 
     if (reply.type === "audio_text") {
         appendBubble(reply.text, who);
-        appendAudioBubble(reply.filename, reply.caption, who);
+        appendAudioBubble(reply.filename, reply.caption, who, true);
         return;
     }
 
@@ -163,23 +163,21 @@ function appendImageBubble(filename, caption) {
     chat.scrollTop = chat.scrollHeight;
 }
  
-function appendAudioBubble(filename, caption, who) {
-    //console.log("Append audio bubble called! 1")
+function appendAudioBubble(filename, caption, who, autoplay = false) {
     const character_image = window.character_image;
 
-    // ⭐  Audio bubble creation split here
     const row = document.createElement("div");
     row.className = "message-row " + (who === "you" ? "message-right" : "message-left");
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/characters/you.png" : "http://192.168.0.121:8000/images/" + character_image + ".png";
+    avatar.src = who === "you"
+        ? "http://192.168.0.121:8000/images/characters/you.png"
+        : "http://192.168.0.121:8000/images/" + character_image + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "chat-bubble " + (who === "you" ? "audio-bubble-right" : "audio-bubble");
 
-
-    // Create audio player
     const audio = document.createElement("audio");
     audio.controls = true;
     audio.preload = "none";
@@ -187,10 +185,16 @@ function appendAudioBubble(filename, caption, who) {
     const source = document.createElement("source");
     source.src = "http://192.168.0.121:8000/images/audio/" + filename;
     source.type = "audio/flac";
-
     audio.appendChild(source);
 
-    // Optional caption (same style as images)
+    // ⭐ Only autoplay if explicitly requested
+    if (autoplay) {
+        audio.autoplay = true;
+        audio.addEventListener("canplay", () => {
+            audio.play().catch(err => console.warn("Autoplay blocked:", err));
+        });
+    }
+
     const cap = document.createElement("div");
     cap.className = "audio-caption";
     cap.textContent = caption;
@@ -205,7 +209,7 @@ function appendAudioBubble(filename, caption, who) {
         row.appendChild(avatar);
         row.appendChild(bubble);
     }
-   
+
     chat.appendChild(row);
     chat.scrollTop = chat.scrollHeight;
 }
@@ -229,7 +233,7 @@ function appendBubble(text, who) {
         const match = text.match(/\[AUDIO:(.+?)\]/);
         if (match) {
             const filename = match[1];
-            appendAudioBubble(filename, `${characterName} said.`);
+            appendAudioBubble(filename, `${characterName} said.`, true);
             return; // ⭐ Stop normal bubble rendering
         }
     }
