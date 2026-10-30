@@ -103,12 +103,12 @@ lora = {
     "Smarsiga": "Smarsiga_f1"
 }
 voices = {
-    "Leah": "a-female-voice_C.mp3",
-    "Chloe": "a-female-voice_A1.mp3",
-    "Layla": "a-female-voice_T.mp3",
-    "Alana": "a-female-voice_C1.mp3",
-    "Koti": "a-female-voice_L1.mp3",
-    "Smarsiga": "a-female-voice_S.mp3"
+    "Leah": "voice_UK_L_happy.flac_00001.flac",
+    "Chloe": "voice_UK_C_happy.flac_00002.flac",
+    "Layla": "voice_B_happy.flac_00001.flac",
+    "Alana": "voice_A1_happy.flac_00001.flac",
+    "Koti": "voice_A2_happy.flac_00001.flac",
+    "Smarsiga": "voice_L1_happy.flac"
 }
 # character
 persona = ""
@@ -180,11 +180,11 @@ def generate_audio(dialog_script, user):
         workflow = json.load(f)
         # 1. User speaking → use user's own voice
     if user == "User":
-        workflow["3"]["inputs"]["audio"] = "a-male-voice_A.mp3"
+        workflow["3"]["inputs"]["audio"] = "male_321_happy.flac_00001.flac"
     else:
         # 2. Character speaking → look up voice
         if user == 'Narrator':
-            voice_file = "a-male-voice-br-go.mp3"
+            voice_file = "male_A_happy.flac_00002.flac"
         else:
             voice_file = voices.get(character_name)
 
@@ -193,7 +193,7 @@ def generate_audio(dialog_script, user):
             workflow["3"]["inputs"]["audio"] = voice_file
         else:
             # Unknown character → disable voice or use fallback
-            workflow["3"]["inputs"]["audio"] = "a-male-voice-br-go.mp3"
+            workflow["3"]["inputs"]["audio"] = "male_A_happy.flac_00002.flac"
 
     workflow["2"]["inputs"]["text"] = dialog_script
     random_prefix = str(uuid.uuid4())
