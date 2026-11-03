@@ -1,4 +1,4 @@
-const mode = window.tts_mode_js;
+
 const ws = new WebSocket("ws://192.168.0.121:8000/ws");
 
 ws.onmessage = (event) => {
@@ -6,6 +6,7 @@ ws.onmessage = (event) => {
 
     // API-submitted user speech should enter the normal chat flow.
     const speaker = typeof data.character === "string" ? data.character.trim().toLowerCase() : "";
+    console.log("Print we are here")
     if (data.type === "direct_say" && ["me", "user"].includes(speaker)) {
         const text = data.reply && typeof data.reply.text === "string"
             ? data.reply.text
@@ -468,9 +469,10 @@ async function handleCommand(parsed) {
 
 
 async function handleNormalChat(parsed) {
-
-    appendBubble(parsed.raw, "you");
-
+    if (window.tts_mode_js !== "everybody_talking") {
+        appendBubble(parsed.raw, "you");
+    }
+    
     const res = await fetch("/play", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -483,9 +485,32 @@ async function handleNormalChat(parsed) {
 
 
 function handleReplyObject(data) {
-    if (data.user_reply) handleReply(data.user_reply);
-    if (data.character_reply) handleReply(data.character_reply);
-    if (data.reply) handleReply(data.reply);
+    if (
+        data.reply?.user_reply?.type === "audio" &&
+        data.reply?.character_reply?.type === "audio"
+    ) {
+        handleReply(data.reply.user_reply);
+
+        setTimeout(() => {
+            handleReply(data.reply.character_reply);
+        }, 15000);
+
+        return;
+    }
+
+    if (data.reply?.character_reply) {
+        console.log("Character reply only");
+        handleReply(data.character_reply);
+        return;
+    }
+
+    if (data.reply) {
+        console.log("Normal reply");
+        handleReply(data.reply);
+        return;
+    }
+
+    console.warn("Unknown reply bundle:", data);
 }
 
 

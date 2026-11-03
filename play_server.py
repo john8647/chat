@@ -104,9 +104,9 @@ lora = {
 }
 voices = {
     "Leah": "voice_UK_L_happy.flac_00001.flac",
-    "Chloe": "voice_UK_C_happy.flac_00002.flac",
-    "Layla": "voice_B_happy.flac_00001.flac",
-    "Alana": "voice_A1_happy.flac_00001.flac",
+    "Chloe": "voice_UK_L_happy.flac_00001.flac",
+    "Layla": "voice_UK_C_happy.flac_00002.flac",
+    "Alana": "voice_B_happy.flac_00001.flac",
     "Koti": "voice_A2_happy.flac_00001.flac",
     "Smarsiga": "voice_L1_happy.flac"
 }
@@ -737,6 +737,7 @@ def send_message(user_input):
     # ---------------------------------------------------------
     # 2. SAID (user speaks manually)
     # ---------------------------------------------------------
+    user_reply = None
     if lower.startswith("said ") and len(parts) == 2:
         text = parts[1].strip()
 
@@ -763,15 +764,18 @@ def send_message(user_input):
     # ---------------------------------------------------------
     history += f"User: {user_input}\n"
     # new memory line added
-    add_user_line(user_input)
+    # add_user_line(user_input)
 
     # Automatic user TTS only in these modes
-    if TTS_mode in ["everybody_talking", "everybody_talking_with_text"]:
+    if (
+        TTS_mode in ["everybody_talking", "everybody_talking_with_text"]
+        and user_reply is None
+    ):
         filename = generate_audio(user_input, "User")
         history += f"User: [AUDIO:{filename}]\n"
         save_history()
 
-        return {
+        user_reply = {
             "type": "audio_text" if "with_text" in TTS_mode else "audio",
             "filename": filename,
             "text": user_input if "with_text" in TTS_mode else None,
@@ -783,6 +787,8 @@ def send_message(user_input):
     # ---------------------------------------------------------
     if not reply_mode:
         save_history()
+        if user_reply is not None:
+            return user_reply
         return {"type": "none", "text": ""}
 
     # ---------------------------------------------------------
@@ -854,6 +860,7 @@ def send_message(user_input):
     # 8. Character TTS (combined logic)
     # ---------------------------------------------------------
     if TTS_mode == "none":
+        print("working 1")
         return {"type": "text", "text": reply}
 
     # Modes where character speaks
@@ -864,7 +871,7 @@ def send_message(user_input):
         "everybody_talking_with_text"
     ]:
         filename1 = generate_audio(reply, character_name)
-        history += f"{character_name}: [AUDIO:{filename}]\n"
+        history += f"{character_name}: [AUDIO:{filename1}]\n"
         save_history()
 
         character_reply = {
@@ -874,13 +881,18 @@ def send_message(user_input):
             "caption": f"{character_name} said"
         }
 
-        # Return BOTH replies
-        return {
-            "user_reply": user_reply,
-            "character_reply": character_reply
-        }
+        # Dual reply (user said + character reply)
+        if user_reply is not None:
+            print("reply at 1")
+            return {
+                "user_reply": user_reply,
+                "character_reply": character_reply
+            }
+
+        return character_reply
 
     # Fallback (should never happen)
+    print("reply at 3")
     return {"type": "text", "text": reply}
 
 
