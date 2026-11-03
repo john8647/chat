@@ -6,7 +6,7 @@ ws.onmessage = (event) => {
 
     // API-submitted user speech should enter the normal chat flow.
     const speaker = typeof data.character === "string" ? data.character.trim().toLowerCase() : "";
-    console.log("Print we are here")
+    //console.log("Print we are here")
     if (data.type === "direct_say" && ["me", "user"].includes(speaker)) {
         const text = data.reply && typeof data.reply.text === "string"
             ? data.reply.text
@@ -218,7 +218,7 @@ function appendAudioBubble(filename, caption, who, autoplay = false) {
 
 
 function appendBubble(text, who) {
-    console.log("Beginning speak 1")
+    //console.log("Beginning speak 1")
     const character_image = window.character_image;
     // ⭐ If this is an image marker, redirect to appendImageBubble
     if (text.includes("[IMAGE:")) {
@@ -464,12 +464,13 @@ async function handleCommand(parsed) {
 
     const data = await res.json();
     handleReplyObject(data);
-    console.log("handle image")
+    //console.log("handle image")
 }
 
 
 async function handleNormalChat(parsed) {
-    if (window.tts_mode_js !== "everybody_talking") {
+    if (!(window.tts_mode_js === "everybody_talking" ||
+        window.tts_mode_js === "everybody_talking_with_text")) {
         appendBubble(parsed.raw, "you");
     }
     
@@ -487,8 +488,11 @@ async function handleNormalChat(parsed) {
 function handleReplyObject(data) {
     if (
         data.reply?.user_reply?.type === "audio" &&
-        data.reply?.character_reply?.type === "audio"
+        data.reply?.character_reply?.type === "audio" ||
+        data.reply?.user_reply?.type === "audio_text" &&
+        data.reply?.character_reply?.type === "audio_text"
     ) {
+        //console.log(data)
         handleReply(data.reply.user_reply);
 
         setTimeout(() => {
@@ -499,13 +503,14 @@ function handleReplyObject(data) {
     }
 
     if (data.reply?.character_reply) {
-        console.log("Character reply only");
+        //console.log(data)
+        //console.log("Character reply only");
         handleReply(data.character_reply);
         return;
     }
 
     if (data.reply) {
-        console.log("Normal reply");
+       //console.log("Normal reply");
         handleReply(data.reply);
         return;
     }
