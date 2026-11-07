@@ -1,0 +1,20 @@
+[
+    {
+        "name": "Jimmy",
+        "image": "/characters/Jimmy",
+	"lora": "Jimmy_l1",
+	"voice": "voice_Jimmy.flac"
+    },
+    {
+        "name": "Chloe",
+        "image": "/characters/Chloe",
+	"lora": "Chloe_l1",
+	"voice": "voice_Chloe.flac"
+    },
+    {
+        "name": "Sarah",
+        "image": "/characters/Sarah_l1",
+	"lora": "Sarah_l1",
+	"voice": "voice_Sarah.flac"
+    } 
+]

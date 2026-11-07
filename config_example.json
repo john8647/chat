@@ -1,0 +1,8 @@
+[
+    {
+        "SERVER_URL": "https://kobold_UI.dev",
+        "IMAGE_GEN_SERVER_URL": "https://image_comfyUI.dev",
+        "AUDIO_GEN_SERVER_URL": "https://audio_comfyUI.dev",
+        "MOUNT_DIR": "A:/files"
+    }
+]

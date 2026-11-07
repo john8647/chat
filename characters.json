@@ -1,30 +1,45 @@
 [
     {
         "name": "Jimmy",
-        "image": "/characters/Jimmy1"
+        "image": "/characters/Jimmy1",
+	"lora": "",
+	"voice": ""
     },
     {
         "name": "Leah",
-        "image": "/characters/Leah"
+        "image": "/characters/Leah",
+	"lora": "Leah_f1",
+	"voice": "voice_UK_L_happy.flac_00001.flac"
     },
     {
         "name": "Layla",
-        "image": "/characters/Layla"
+        "image": "/characters/Layla",
+	"lora": "Chloe_f0",
+	"voice": "voice_UK_C_happy.flac_00002.flac"
     },
     {
         "name": "Alana",
-        "image": "/characters/Alana"
+        "image": "/characters/Alana",
+	"lora": "Alana_f1",
+	"voice": "voice_B_happy.flac_00001.flac"
     },
     {
         "name": "Koti",
-        "image": "/characters/Koti"
+        "image": "/characters/Koti",
+	"lora": "Koti_f3",
+	"voice": "voice_A2_happy.flac_00001.flac"
+
     },
     {
         "name": "Chloe",
-        "image": "/characters/Chloe"
+        "image": "/characters/Chloe",
+	"lora": "Chloe_f5",
+	"voice": "voice_UK_L_happy.flac_00001.flac"
     },
     {
         "name": "Smarsiga",
-        "image": "/characters/Smarsiga_f1"
+        "image": "/characters/Smarsiga_f1",
+	"lora": "Smarsiga_f1",
+	"voice": "voice_L1_happy.flac"
     } 
 ]

@@ -3,8 +3,8 @@ node_modules/
 env.py
 README.md
 *.json
-!/character.json
+!characters_example.json
 images/
 datasets/
-!/config.json
+!config_example.json
 notes/

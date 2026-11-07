@@ -88,28 +88,21 @@ def koboldcpp_alive():
 character_name = "undefined"
 character_profile_changes = ""
 
-# lora = {
-# "Jimmy": "jimmy_f1",
-# "Sarah": "sarah_f1",
-# "Chloe": "chloe_f1"
-# }
+with open("characters.json", "r", encoding="utf-8") as f:
+    CHARACTERS = json.load(f)
 
-lora = {
-    "Alana": "Alana_f1",
-    "Chloe": "Chloe_f5",
-    "Layla": "Chloe_f0",
-    "Leah": "Leah_f1",
-    "Koti": "Koti_f3",
-    "Smarsiga": "Smarsiga_f1"
-}
-voices = {
-    "Leah": "voice_UK_L_happy.flac_00001.flac",
-    "Chloe": "voice_UK_L_happy.flac_00001.flac",
-    "Layla": "voice_UK_C_happy.flac_00002.flac",
-    "Alana": "voice_B_happy.flac_00001.flac",
-    "Koti": "voice_A2_happy.flac_00001.flac",
-    "Smarsiga": "voice_L1_happy.flac"
-}
+lora = {}
+voices = {}
+
+for character in CHARACTERS:
+    name = character.get("name")
+
+    if not name:
+        continue
+
+    lora[name] = character.get("lora", "")
+    voices[name] = character.get("voice", "")
+
 # character
 persona = ""
 mood = ""
