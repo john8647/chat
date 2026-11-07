@@ -924,13 +924,14 @@ async def websocket_endpoint(ws: WebSocket):
 
 async def broadcast_direct_say(character, reply):
     dead = []
-    print("dead here")
+    print("dead here 123")
     for ws in clients:
         try:
             await ws.send_json({
                 "type": "direct_say",
                 "character": character,
-                "reply": reply
+                "reply": reply,
+                "source": "api"
             })
         except:
             dead.append(ws)
@@ -1254,7 +1255,8 @@ async def direct_character_say(data: dict):
     character = data.get("character")
     text = data.get("text")
     source = data.get("source", "api")  # default to api if not provided
-
+    print("source being provided is")
+    print(source)
     if not character or not text:
         return {"ok": False, "error": "Missing character or text"}
 
@@ -1284,8 +1286,10 @@ async def direct_character_say(data: dict):
         reply = send_message(dialog)
 
         # PUSH full reply to browser
-        print("TEST A!")
-        await broadcast_direct_say(character, reply)
+        print("TEST API!")
+        if source == "api":
+            print("entering API area")
+            await broadcast_direct_say(character, reply)
 
         return {"reply": reply}
 

@@ -3,11 +3,12 @@ const ws = new WebSocket("ws://192.168.0.121:8000/ws");
 
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
+    // Only process API-originated websocket messages
 
     // API-submitted user speech should enter the normal chat flow.
     const speaker = typeof data.character === "string" ? data.character.trim().toLowerCase() : "";
     //console.log("Print we are here")
-    if (data.type === "direct_say" && ["me", "user"].includes(speaker)) {
+    if (data.source === "api" && data.type === "direct_say" && ["me", "user"].includes(speaker)) {
         const text = data.reply && typeof data.reply.text === "string"
             ? data.reply.text
             : data.text;
@@ -19,8 +20,9 @@ ws.onmessage = (event) => {
     }
 
     // Direct speech
-    if (data.type === "direct_say" && (characterName === data.character || data.character === 'you')) {
+    if (data.source === "api" && data.type === "direct_say" && (characterName === data.character || data.character === 'you')) {
         const reply = data.reply;
+        console.log(data)
         console.log("Client detected a message via the API")
         if (!reply) {
             // legacy fallback
@@ -49,35 +51,35 @@ ws.onmessage = (event) => {
         return;
     }
 
-// Direct command (remote-triggered chat)
-if (data.type === "direct_command" && characterName === data.character) {
+    // Direct command (remote-triggered chat)
+    if (data.source !== "api" && data.type === "direct_command" && characterName === data.character) {
 
-    const reply = data.reply;
-    const firstWord = data.command.split(" ")[0].toLowerCase();
-    const skipBubbleCommands = ["say", "said", "audio", "image", "view", "show"];
+        const reply = data.reply;
+        const firstWord = data.command.split(" ")[0].toLowerCase();
+        const skipBubbleCommands = ["say", "said", "audio", "image", "view", "show"];
 
-    // IMAGE reply
-    if (reply && reply.type === "image") {
-        appendImageBubble(reply.filename, reply.caption);
+        // IMAGE reply
+        if (reply && reply.type === "image") {
+            appendImageBubble(reply.filename, reply.caption);
+            return;
+        }
+
+        // Only show "you" bubble if command is NOT a TTS/image/show command
+        if (!skipBubbleCommands.includes(firstWord)) {
+            appendBubble(data.command, "you");
+        }
+
+        // Route reply normally
+        handleReply(reply);
+
         return;
     }
-
-    // Only show "you" bubble if command is NOT a TTS/image/show command
-    if (!skipBubbleCommands.includes(firstWord)) {
-        appendBubble(data.command, "you");
-    }
-
-    // Route reply normally
-    handleReply(reply);
-
-    return;
-}
 
 
 };
 
 
- 
+
 
 
 async function loadCharacterName() {
@@ -88,7 +90,7 @@ async function loadCharacterName() {
 
 
 function handleReply(reply) {
-
+    console.log("Character reply only _ after handle object 1");
     // Determine speaker
     const who = reply.caption === "You said" ? "you" : "character";
 
@@ -136,7 +138,7 @@ function appendImageBubble(filename, caption) {
 
     const avatar = document.createElement("img");
     avatar.className = "avatar-chat";
-    avatar.src =  "http://192.168.0.121:8000/images/" + character_image + ".png";
+    avatar.src = "http://192.168.0.121:8000/images/" + character_image + ".png";
 
     const bubble = document.createElement("div");
     bubble.className = "image-bubble";
@@ -163,7 +165,7 @@ function appendImageBubble(filename, caption) {
     chat.appendChild(row);
     chat.scrollTop = chat.scrollHeight;
 }
- 
+
 function appendAudioBubble(filename, caption, who, autoplay = false) {
     const character_image = window.character_image;
 
@@ -360,12 +362,12 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
- 
- 
+
+
 
 const cap = document.createElement("div");
-    cap.className = "image-caption";
-    
+cap.className = "image-caption";
+
 function hideTyping() {
     const row = document.getElementById("typingRow");
     if (row) row.remove();
@@ -473,7 +475,7 @@ async function handleNormalChat(parsed) {
         window.tts_mode_js === "everybody_talking_with_text")) {
         appendBubble(parsed.raw, "you");
     }
-    
+
     const res = await fetch("/play", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -486,6 +488,7 @@ async function handleNormalChat(parsed) {
 
 
 function handleReplyObject(data) {
+
     if (
         data.reply?.user_reply?.type === "audio" &&
         data.reply?.character_reply?.type === "audio" ||
@@ -504,13 +507,13 @@ function handleReplyObject(data) {
 
     if (data.reply?.character_reply) {
         //console.log(data)
-        //console.log("Character reply only");
+        console.log("Character reply only");
         handleReply(data.character_reply);
         return;
     }
 
     if (data.reply) {
-       //console.log("Normal reply");
+        //console.log("Normal reply");
         handleReply(data.reply);
         return;
     }
