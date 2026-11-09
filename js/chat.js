@@ -2,7 +2,7 @@
 const ws = new WebSocket("ws://192.168.0.121:8000/ws");
 
 ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
+    const data = JSON.parse(event.data)
     // Only process API-originated websocket messages
 
     // API-submitted user speech should enter the normal chat flow.
@@ -219,57 +219,6 @@ function appendAudioBubble(filename, caption, who, autoplay = false) {
 
 
 
-function appendBubble(text, who) {
-    //console.log("Beginning speak 1")
-    const character_image = window.character_image;
-    // ⭐ If this is an image marker, redirect to appendImageBubble
-    if (text.includes("[IMAGE:")) {
-        const match = text.match(/\[IMAGE:(.+?)\]/);
-        if (match) {
-            const filename = match[1];
-            appendImageBubble(filename, `${characterName} sent.`);
-            return; // ⭐ Stop normal bubble rendering
-        }
-    }
-
-    if (text.includes("[AUDIO:")) {
-        const match = text.match(/\[AUDIO:(.+?)\]/);
-        if (match) {
-            const filename = match[1];
-            appendAudioBubble(filename, `${characterName} said.`, true);
-            return; // ⭐ Stop normal bubble rendering
-        }
-    }
-
-    // ⭐ Normal text bubble continues here
-    const row = document.createElement("div");
-    row.className = "message-row " + (who === "you" ? "message-right" : "message-left");
-
-    const avatar = document.createElement("img");
-    avatar.className = "avatar-chat";
-    avatar.src = who === "you" ? "http://192.168.0.121:8000/images/characters/you.png" : "http://192.168.0.121:8000/images/" + character_image + ".png";
-
-    const bubble = document.createElement("div");
-    bubble.className = "message-bubble " + (who === "you" ? "message-right" : "message-left");
-
-    const timestamp = document.createElement("div");
-    timestamp.className = "timestamp";
-    timestamp.textContent = formatTimestamp(new Date());
-
-    bubble.innerHTML = text;
-    bubble.appendChild(timestamp);
-
-    if (who === "you") {
-        row.appendChild(bubble);
-        row.appendChild(avatar);
-    } else {
-        row.appendChild(avatar);
-        row.appendChild(bubble);
-    }
-
-    chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
-}
 
 
 function showTyping() {
@@ -294,6 +243,25 @@ function showTyping() {
 }
 
 function appendBubble(text, who) {
+
+    text = text.replace(/\\n/g, "\n");
+
+    // ⭐ Split multi-line messages into separate bubbles
+    if (typeof text === "string" && text.includes("\n")) {
+        //console.log("instant message split up into more that one bubble")
+        const lines = text
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+
+        for (const line of lines) {
+            appendBubble(line, who);
+        }
+
+        return;
+    }
+
+    //console.log("Beginning speak 1")
     const character_image = window.character_image;
     const row = document.createElement("div");
     row.className = "message-row " + (who === "you" ? "message-right" : "message-left");

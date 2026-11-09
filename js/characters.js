@@ -1,6 +1,6 @@
 //console.log("character.js loaded here.")
 window.character_image = "Jimmy";
-
+let char_element = ""
 
 async function loadCharacters() {
     const characterList = document.querySelector(".character-list");
@@ -25,7 +25,7 @@ async function loadCharacters() {
         const item = document.createElement("div");
         item.className = `character-item${index === 0 ? " active" : ""}`;
         item.dataset.name = character.name;
-        item.dataset.image = character.image;   
+        item.dataset.image = character.image;
         //console.log(character.image)
         item.addEventListener("click", () => selectCharacter(character.name, item, character.image));
         const avatar = document.createElement("div");
@@ -58,11 +58,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
 async function selectCharacter(name, element, image) {
     if (!name) {
-    name = "Jimmy";
-    window.character_image =  "Jimmy1"   
+        name = "Jimmy";
+        window.character_image = "Jimmy1"
     }
-    window.character_image = image    
+    window.character_image = image
     characterName = name;
+    char_element = element
     updateHeader();
 
     // Sidebar highlight
@@ -121,16 +122,5 @@ async function refreshCharacter() {
     });
 
     const data = await res.json();
-
-    if (data.ok) {
-        //console.log("Character refreshed:", data.character);
-
-        // ⭐ Re‑load character data into the frontend
-        await selectCharacter(characterName);
-
-        //alert("Character profile reloaded.");
-    } else {
-        alert("Failed to refresh character.");
-    }
 }
 

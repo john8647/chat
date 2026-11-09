@@ -1,3 +1,5 @@
+from pathlib import Path
+import sys
 from fastapi import WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -85,7 +87,7 @@ def koboldcpp_alive():
 # ---------------------------------------------------------
 # Character globals
 # ---------------------------------------------------------
-character_name = "undefined"
+character_name = "Jimmy"
 character_profile_changes = ""
 
 with open("characters.json", "r", encoding="utf-8") as f:
@@ -303,7 +305,7 @@ def generate_image(prompt):
     if not comfyui_alive():
         print("ComfyUI server is NOT alive or unreachable.")
         print(IMAGE_GEN_SERVER_URL)
-        return None
+        return
 
     workflow_path = "resources/comfyui_api/image_workflow.json"
     with open(workflow_path, "r") as f:
@@ -393,7 +395,8 @@ def generate_image_prompt():
 
     lora_name = lora.get(character_name, "")
     use_lora = bool(lora_name)
-    print(use_lora)
+    if age != "":
+        description += f" is around {age} years old"
     if use_lora:
         subject_line = f"{lora_name},  {description}"
     else:
@@ -401,11 +404,11 @@ def generate_image_prompt():
 
     image_prompt = (
         f"{subject_line}, "
+        f"wearing {outfit}, "
         f"{pose}, looking {mood}, "
         f"{char_location}, "
-        f"Wears {outfit}, "
         f"{build_holding_text(inventory)}\n"
-        f"Image Details:  raw, photo realistic, detailed skin texture and inperfections with visibles pores, casual amateur photo."
+        f"raw, photo realistic, detailed skin texture and inperfections with visibles pores, casual amateur snapshot."
     )
 
     return image_prompt
@@ -460,6 +463,97 @@ def load_character_data():
         pose = ""
         age = ""
         thinking_about = ""
+
+
+def look_for_character_profile_changes():
+    global persona, mood, outfit, char_location, inventory, description, pose, age, thinking_about, character_name, character_profile_changes, emptyhanded
+
+    filename = f"{character_name}.json"
+
+    if not os.path.exists(filename):
+        character_profile_changes = ""
+        return
+
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+    except Exception as e:
+        print("Error loading character data:", e)
+        character_profile_changes = ""
+        return
+
+    changes = []
+
+    field_map = {
+        "persona": ("Persona updated.", persona),
+        "mood": ("Mood changed to: {value}", mood),
+        "outfit": ("Outfit changed to: {value}", outfit),
+        "location": ("Location updated is now: {value}", char_location),
+        "description": ("Description updated: {value}", description),
+        "pose": ("New pose is: {value}", pose),
+        "age": ("Age updated: {value}", age),
+        "thinking_about": (
+            f"{character_name} internal thinking updated: {{value}}",
+            thinking_about
+        )
+    }
+
+    # Compare normal fields
+    for field, (message, current_value) in field_map.items():
+
+        file_value = data.get(field, "")
+
+        if file_value != current_value:
+
+            if "{value}" in message:
+                changes.append(message.format(value=file_value))
+            else:
+                changes.append(message)
+
+            # Update the Python variable as well
+            if field == "persona":
+                persona = file_value
+            elif field == "mood":
+                mood = file_value
+            elif field == "outfit":
+                outfit = file_value
+            elif field == "location":
+                char_location = file_value
+            elif field == "description":
+                description = file_value
+            elif field == "pose":
+                pose = file_value
+            elif field == "age":
+                age = file_value
+            elif field == "thinking_about":
+                thinking_about = file_value
+
+    # Inventory handled separately
+    file_inventory = data.get("inventory", [])
+
+    if file_inventory != inventory:
+
+        if len(file_inventory) > 0:
+            changes.append(
+                f"Inventory updated now is: {file_inventory}"
+            )
+            emptyhanded = False
+
+        elif not emptyhanded:
+            changes.append(
+                f"{character_name} has nothing in their hands."
+            )
+            emptyhanded = True
+
+        inventory = file_inventory
+
+    character_profile_changes = "\n".join(changes)
+    print("character change function completed")
+    if character_profile_changes:
+        print("Character changes detected:")
+        print(character_profile_changes)
+    print("character change function completed2")
 
 
 def save_character_data(new_data):
@@ -569,7 +663,7 @@ def test_requests(payload):
 
 
 def clean_history_for_prompt(history: str) -> str:
-    shortest_message = 18
+    shortest_message = 10
     last_short_lines_kept_in = 6
 
     cleaned_lines = []
@@ -698,10 +792,10 @@ def send_message(user_input):
         }
 
     if len(parts) == 1 and parts[0] == "view":
-        filename = generate_image_prompt()
-        history += f"You: {filename}\n"
+        promptText = generate_image_prompt()
+        history += f"You: {promptText}\n"
         save_history()
-        return filename
+        return {"type": "text", "text": promptText}
 
     lower = user_input.lower().strip()
     parts = user_input.split(" ", 1)
@@ -823,12 +917,14 @@ def send_message(user_input):
         "top_p": 0.7,
         "stop_sequence": ["User:", f"{character_name}:"]
     }
-
+    print(character_profile_changes)
+    character_profile_changes = ""
     # ---------------------------------------------------------
     # 7. Generate AI reply
     # ---------------------------------------------------------
     if TEST_MODE:
         reply = test_requests(payload)
+
     else:
         # Check KoboldCPP status + model name (only queries once)
         if not koboldcpp_alive():
@@ -901,9 +997,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+try:
+    mount_path = Path(MOUNT_DIR)
 
-# ⭐ Static mount BEFORE routes
-app.mount("/images", StaticFiles(directory=MOUNT_DIR), name="images")
+    if not mount_path.exists():
+        raise FileNotFoundError(
+            f"Mount directory does not exist: {mount_path}")
+
+    app.mount("/images", StaticFiles(directory=str(mount_path)), name="images")
+
+    print(f"[OK] Static mount loaded: {mount_path}")
+
+except Exception as e:
+    print(f"[FATAL] Unable to mount /images")
+    print(f"[FATAL] {e}")
+    sys.exit(1)
+
 
 # ---------------------------------------------------------
 # Routes
@@ -1106,8 +1215,8 @@ def refresh_character(data: dict):
         character_name = data["character"]
 
     # FIX: call without arguments
-    load_character_data()
-
+    look_for_character_profile_changes()
+    # load_character_data()
     return {"ok": True, "character": character_name}
 
 
@@ -1134,8 +1243,8 @@ def update_character(req: dict):
         new_data["mood"] = new_mood
 
     new_outfit = req.get("outfit", outfit)
-    print(new_outfit)
-    print(outfit)
+    # print(new_outfit)
+    # print(outfit)
     if new_outfit != outfit:
         new_data["outfit"] = new_outfit
 
